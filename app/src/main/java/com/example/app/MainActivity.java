@@ -26,10 +26,17 @@ public class MainActivity extends Activity {
         mWebView = findViewById(R.id.activity_main_webview);
         WebSettings webSettings = mWebView.getSettings();
 
+        // 1. ENABLE FEATURES
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setDatabaseEnabled(true);
 
+        // Required for API Fetch to work correctly
+        webSettings.setAllowFileAccess(true);
+        webSettings.setAllowContentAccess(true);
+        webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        
+        // 2. LONG TERM MEMORY
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(mWebView, true);
 
@@ -60,7 +67,14 @@ public class MainActivity extends Activity {
         }
         
         if (url.contains("order") || url.contains("details") || url.contains("job")) {
-            injectVideoSelector(view);
+            // Check if Order ID is present in URL
+            String orderId = getOrderIdFromUrl(url);
+            if (orderId != null) {
+                injectApiSelector(view, orderId);
+            } else {
+                // Fallback to basic visual injection if order ID is missing (shouldn't happen)
+                injectVideoSelector(view); 
+            }
             return;
         }
 
@@ -73,6 +87,32 @@ public class MainActivity extends Activity {
             view.loadUrl("https://app.tokportal.com/account-manager/calendar");
         }
     }
+    
+    // --- UTILITY: Extract Order ID from the current URL ---
+    private String getOrderIdFromUrl(String url) {
+        try {
+            // Expecting format like: /orders/ORDER_ID
+            int index = url.indexOf("/orders/");
+            if (index != -1) {
+                String potentialId = url.substring(index + "/orders/".length());
+                // ID should end at the next non-ID character (e.g., # or ?)
+                int end = potentialId.indexOf('#');
+                if (end == -1) end = potentialId.indexOf('?');
+                if (end == -1) end = potentialId.length();
+                
+                String orderId = potentialId.substring(0, end);
+                
+                // Validate if it looks like a GUID (basic check for length/dashes)
+                if (orderId.length() >= 20 && orderId.contains("-")) {
+                    return orderId;
+                }
+            }
+        } catch (Exception e) {
+            // Error handling if URL structure is unexpected
+        }
+        return null;
+    }
+
 
     public class WebAppInterface {
         Context mContext;
@@ -174,56 +214,106 @@ public class MainActivity extends Activity {
         view.loadUrl(js.toString());
     }
 
-   // =========================================================
-    // MODULE 2: VIDEO SELECTOR SCREEN (API URL HUNTER MODE)
     // =========================================================
-    private void injectVideoSelector(WebView view) {
+    // MODULE 2: API-DRIVEN VIDEO SELECTOR
+    // =========================================================
+    private void injectApiSelector(WebView view, String orderId) {
         StringBuilder js = new StringBuilder();
+        
         js.append("javascript:(function() {");
         js.append("  if(document.getElementById('selector-root')) return;");
         
+        // --- UI INJECTION ---
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
-        js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:#00ff9d; z-index:99999; font-family:'Share Tech Mono', monospace; padding:15px; overflow-y:scroll; font-size: 14px; white-space: pre-wrap; word-wrap: break-word; }");
-        js.append("    body > *:not(#selector-root) { display: none !important; }"); 
-        js.append("    .result { color: white; font-weight: bold; margin-top: 10px; }");
+        js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
+        js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
+        js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); 
+        js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; padding:15px; overflow-y:auto; }");
+        js.append("    .sel-btn { background:#13131f; border:1px solid #00f3ff; color:white; padding:15px; margin-bottom:10px; text-align:left; font-weight:bold; width:100%; display:block; }");
+        js.append("    .sel-status { float:right; color:#00f3ff; font-weight:normal; }");
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
         js.append("  var root = document.createElement('div');");
         js.append("  root.id = 'selector-root';");
+        js.append("  root.innerHTML = `");
+        js.append("    <h2 style='font-family:Orbitron; color:white; margin-bottom:20px;'>TARGET ACQUISITION (API MODE)</h2>");
+        js.append("    <p style='color:#ccc; margin-bottom:10px;' id='status-msg'>Fetching video data via API...</p>");
+        js.append("    <div id='video-list'>Loading...</div>");
+        js.append("    <button class='sel-btn' style='margin-top:20px; border-color:#666; color:#666;' onclick='history.back()'>BACK TO CALENDAR</button>");
+        js.append("  `;");
         js.append("  document.body.appendChild(root);");
-
-        js.append("  var currentUrl = window.location.href;");
-        js.append("  var orderId = currentUrl.split('/').pop().split('#')[0];"); // Grabs the order ID from the end of the URL
         
-        js.append("  root.innerHTML = '<h2>API INTERCEPTION: STEP 1</h2><p>Order ID detected: ' + orderId + '</p>';");
-
-        // --- SCAN LOGIC: Check for window variables holding API links ---
-        js.append("  var linkFound = false;");
+        // --- API FETCH LOGIC ---
+        // Uses the orderId extracted in Java to construct the stable API endpoint
+        js.append("  var apiEndpoint = 'https://app.tokportal.com/api/manager/orders/" + orderId + "/details';");
+        js.append("  var listContainer = document.getElementById('video-list');");
+        js.append("  var statusMsg = document.getElementById('status-msg');");
+        js.append("  var currentUrl = window.location.href.split('#')[0];");
+        js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
         
-        // Strategy 1: Look for common API link fragments that include the order ID
-        js.append("  if (window.location.host.includes('tokportal')) {");
-        js.append("    var probableLink = 'https://' + window.location.host + '/api/manager/orders/' + orderId + '/details';");
-        js.append("    linkFound = true;");
-        js.append("    root.innerHTML += '<p class=\"result\">PROBABLE API LINK FOUND:</p><textarea style=\"width:100%; height:60px; background:#111; color:#00ff9d; border:1px solid #00ff9d;\" id=\"apiLink\">' + probableLink + '</textarea>';");
-        js.append("    root.innerHTML += '<p style=\"color: #ff0050; margin-top: 10px;\">**PLEASE COPY THE FULL TEXT IN THE BOX ABOVE.**</p>';");
-        js.append("  } else {");
-        js.append("    root.innerHTML += '<p style=\"color: #ff0050;\">Error: Could not construct API link based on host.</p>';");
-        js.append("  }");
+        js.append("  function renderSelector(data) {");
+        js.append("    if (!data.videos || data.videos.length === 0) {");
+        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">No videos found in API response.</p>';");
+        js.append("      statusMsg.innerText = 'API Fetch Complete - No Videos Found.';");
+        js.append("      return;");
+        js.append("    }");
         
-        js.append("  var backBtn = document.createElement('button');");
-        js.append("  backBtn.innerText = 'BACK TO CALENDAR';");
-        js.append("  backBtn.style.cssText = 'background: #00f3ff; color: black; padding: 10px 20px; border: none; font-weight: bold; margin-top: 20px; width: 100%;';");
-        js.append("  backBtn.onclick = function() { history.back(); };");
-        js.append("  document.getElementById('selector-root').appendChild(backBtn);");
+        js.append("    var html = '';");
+        js.append("    var videoCount = 0;");
+        
+        // Loop through videos found in the API data
+        js.append("    data.videos.forEach(function(video, index) {");
+        js.append("      // Use API properties for title and status");
+        js.append("      var cleanTitle = video.title || 'Untitled Video';");
+        js.append("      var status = video.status === 'accepted' ? 'READY' : (video.status === 'in_review' ? 'IN REVIEW' : 'SCHEDULED');");
+        
+        // Only show videos ready for upload
+        js.append("      if (video.status === 'accepted') {");
+        js.append("        videoCount++;");
+        js.append("        // The video index is now guaranteed to be correct based on the API list");
+        js.append("        var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
+        js.append("        html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + ' (' + status + ')' + '</button>';");
+        js.append("      }");
+        js.append("    });");
 
+        js.append("    if (videoCount > 0) {");
+        js.append("      listContainer.innerHTML = html;");
+        js.append("      statusMsg.innerText = 'Select Video Mission:';");
+        js.append("    } else {");
+        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check In Review status.</p>';");
+        js.append("      statusMsg.innerText = 'API Fetch Complete - No Ready Videos.';");
+        js.append("    }");
+        js.append("  }"); // End renderSelector function
+
+        // Execute API Fetch
+        js.append("  fetch(apiEndpoint)");
+        js.append("    .then(response => {");
+        js.append("      if (!response.ok) {");
+        js.append("        throw new Error('API request failed with status ' + response.status);");
+        js.append("      }");
+        js.append("      return response.json();");
+        js.append("    })");
+        js.append("    .then(data => {");
+        js.append("      renderSelector(data);");
+        js.append("    })");
+        js.append("    .catch(error => {");
+        js.append("      console.error('Fetch Error:', error);");
+        js.append("      statusMsg.innerText = 'FATAL API ERROR: Could not fetch data.';");
+        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">Please ensure you are logged in and refresh the page.</p>';");
+        js.append("    });");
+        
         js.append("})()");
         view.loadUrl(js.toString());
     }
 
     // =========================================================
     // MODULE 3: MISSION COCKPIT (Final Aggregation Screen)
+    // *********************************************************
+    // NOTE: This module remains based on HTML Scrape as a fallback/secondary info source, 
+    // but the critical data flow (which video to click) now originates from the API fetch.
+    // *********************************************************
     // =========================================================
     private void injectMissionCockpit(WebView view) {
         StringBuilder js = new StringBuilder();
