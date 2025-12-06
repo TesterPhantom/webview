@@ -156,7 +156,6 @@ public class MainActivity extends Activity {
         js.append("          count++; actionHTML += \"<div class='card' style='border-left:3px solid #00f3ff;'>\";");
         js.append("          actionHTML += \"<div class='card-row'><div style='font-weight:bold; color:white; font-size:14px;'>\" + username + \"</div><div style='font-size:10px; color:#00f3ff;'>READY</div></div>\";");
         
-        // Navigation now goes to the Video Selector Screen, passing username
         js.append("          if(href) { actionHTML += \"<button class='btn' onclick='location.href=\\\"\" + href + \"#user=\" + cleanName + \"\\\"'>OPEN COCKPIT</button>\"; }");
         js.append("          else { actionHTML += \"<button class='btn' style='border-color:#666; color:#666;'>LINK NOT FOUND</button>\"; }");
         js.append("          actionHTML += \"</div>\";");
@@ -190,7 +189,7 @@ public class MainActivity extends Activity {
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
-        js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); // Hide live site elements
+        js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); 
         js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; padding:15px; overflow-y:auto; }");
         js.append("    .sel-btn { background:#13131f; border:1px solid #00f3ff; color:white; padding:15px; margin-bottom:10px; text-align:left; font-weight:bold; width:100%; display:block; }");
         js.append("    .sel-status { float:right; color:#00f3ff; font-weight:normal; }");
@@ -207,27 +206,32 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
-        // --- SCRAPER LOGIC: Find all video cards on the Order Page ---
+        // --- SCRAPER LOGIC: Find all video cards based on 'Upload this video' button anchor ---
         js.append("  var currentUrl = window.location.href.split('#')[0];");
         js.append("  var listContainer = document.getElementById('video-list');");
-        
-        // Target specific containers known to hold video cards, including the general 'Videos To Upload' section
-        js.append("  var cards = document.querySelectorAll('.rounded-lg, .bg-white, .shadow-lg');"); 
+        js.append("  var uploadButtons = document.querySelectorAll('button');"); // Search for all buttons
         
         js.append("  var html = '';");
         js.append("  var videoCount = 0;");
         js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
         
-        js.append("  cards.forEach(function(card, index) {");
-        // Look for the header text containing the video title/number
-        js.append("    var titleEl = card.querySelector('h3, h4, .font-bold');");
-        js.append("    var status = card.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
-        js.append("    ");
-        js.append("    if(titleEl && titleEl.innerText.includes('Video') && titleEl.innerText.length > 5) {"); // Filter based on expected content
-        js.append("      videoCount++;");
-        js.append("      var cleanTitle = titleEl.innerText.replace(/\\s+\\(\\S+\\)/, '').trim();");
-        js.append("      var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;"); // Add the selected video index
-        js.append("      html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + '<span class=\"sel-status\">' + status + '</span></button>';");
+        js.append("  uploadButtons.forEach(function(btn, index) {");
+        js.append("    if (btn.innerText.includes('Upload this video')) {"); // Found an anchor button
+        
+        // Traverse up to find the main card container (likely nearest parent with rounded corners/shadow)
+        js.append("      var card = btn.closest('.bg-white, .shadow-lg, div[style*=\"border-radius\"]');");
+        js.append("      if (card) {");
+        js.append("        var titleEl = card.querySelector('h3, h4, .font-bold');");
+        js.append("        var status = card.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
+        
+        js.append("        if (titleEl && titleEl.innerText.includes('Glippy')) {"); // Ensure it's a content card
+        js.append("          videoCount++;");
+        js.append("          var cleanTitle = titleEl.innerText.trim();");
+        // Pass the card index (i.e., the specific video) and username to the next stage
+        js.append("          var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
+        js.append("          html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + '<span class=\"sel-status\">' + status + '</span></button>';");
+        js.append("        }");
+        js.append("      }");
         js.append("    }");
         js.append("  });");
 
@@ -326,15 +330,12 @@ public class MainActivity extends Activity {
         js.append("    }");
         
         // 2. SCRAPE CAPTION (Look relative to the Upload Button)
-        js.append("    var uploadBtn = document.querySelector('button');"); // Find a button to use as an anchor
         js.append("    var captionFound = false;");
-        
-        // Look for the specific text/structure of the caption
         js.append("    var possibleCaptions = document.querySelectorAll('p, div, span, strong');"); 
         js.append("    for(var i=0; i<possibleCaptions.length; i++) {");
         js.append("        var txt = possibleCaptions[i].innerText.trim();");
-        // We use the unique hashtag pattern or specific phrase
-        js.append("        if(txt.length > 50 && (txt.includes('#') || txt.includes('medical support')) && !txt.includes('Target period')) {");
+        // We use the specific content anchor and filter for length/symbols
+        js.append("        if(txt.length > 50 && (txt.includes('#') || txt.includes('support')) && !txt.includes('Target period')) {");
         js.append("           document.getElementById('cp-caption').innerText = txt; captionFound = true; break;");
         js.append("        }");
         js.append("    }");
