@@ -59,40 +59,7 @@ public class MainActivity extends Activity {
         
         js.append("  if(document.getElementById('cyber-root')) return;");
 
-        // 1. DATA SCRAPING
-        js.append("  var count = 0;");
-        js.append("  var calendarHTML = '';"); // Variable to hold the list of cards
-        
-        js.append("  var rows = document.querySelectorAll('.grid.grid-cols-8.border-b');");
-        js.append("  if(rows.length > 0) {");
-        js.append("    var day = new Date().getDay(); var col = (day===0)?7:day;");
-        js.append("    for(var i=0; i<rows.length; i++) {");
-        js.append("      var row = rows[i];");
-        js.append("      var txt = row.children[col] ? row.children[col].innerText.toLowerCase() : '';");
-        
-        // If we find a scheduled post:
-        js.append("      if(txt.indexOf('scheduled') !== -1) {");
-        js.append("        count++;");
-        js.append("        var userEl = row.querySelector('.text-gray-900.truncate');");
-        js.append("        var username = userEl ? userEl.innerText : 'Unknown Account';");
-        
-        // --- FIX START ---
-        // We use escaped quotes (\") to keep the Javascript string valid inside the Java string
-        js.append("        calendarHTML += \"<div class='card' style='border-left:3px solid #00f3ff; margin-bottom:10px;'>\";");
-        js.append("        calendarHTML += \"<div style='font-weight:bold; color:white; font-size:16px;'>\" + username + \"</div>\";");
-        js.append("        calendarHTML += \"<div style='font-size:12px; color:#888; margin-top:4px;'>STATUS: READY FOR UPLOAD</div>\";");
-        js.append("        calendarHTML += \"<button class='btn' onclick='alert(\\\"Uploading to \\\" + username)'>UPLOAD NOW</button>\";");
-        js.append("        calendarHTML += \"</div>\";");
-        // --- FIX END ---
-        
-        js.append("      }");
-        js.append("    }");
-        js.append("  }");
-
-        // If no missions found, show a message
-        js.append("  if(calendarHTML === '') calendarHTML = '<p style=\"color:#666\">No scheduled uploads for today.</p>';");
-
-        // 2. CSS STYLES
+        // 1. CSS STYLES
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
@@ -115,7 +82,7 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
-        // 3. HTML STRUCTURE
+        // 2. HTML STRUCTURE
         js.append("  var root = document.createElement('div');");
         js.append("  root.id = 'cyber-root';");
         js.append("  root.innerHTML = `");
@@ -128,7 +95,7 @@ public class MainActivity extends Activity {
         js.append("      <div id='view-1' class='view-section active'>");
         js.append("        <div class='card' style='border-color:#00f3ff; box-shadow:0 0 15px rgba(0,243,255,0.1);'>");
         js.append("          <div style='color:#8b9bb4; font-size:12px;'>PENDING UPLOADS</div>");
-        js.append("          <div class='card-val'>` + count + `</div>");
+        js.append("          <div class='card-val' id='dash-count'>--</div>"); // ID added here
         js.append("        </div>");
         js.append("        <div class='card' style='border-left:4px solid #bd00ff'>");
         js.append("          <div style='color:#8b9bb4; font-size:12px;'>TOTAL XP</div>");
@@ -141,11 +108,11 @@ public class MainActivity extends Activity {
         js.append("        <h2 style='font-family:Orbitron'>Mission Log</h2><p style='color:#888'>No active missions.</p>");
         js.append("      </div>");
 
-        // VIEW 3: CALENDAR (Now Populated!)
+        // VIEW 3: CALENDAR
         js.append("      <div id='view-3' class='view-section'>");
         js.append("        <h2 style='font-family:Orbitron; margin-bottom:15px;'>Scheduled Uploads</h2>");
-        // Inject the scraping results here:
-        js.append("        <div id='calendar-feed'>` + calendarHTML + `</div>");
+        js.append("        <div id='calendar-feed'><p style='color:#888'>Scanning network...</p></div>"); // Placeholder
+        js.append("        <button class='btn' onclick='scanData()' style='margin-top:20px'>FORCE RE-SCAN</button>");
         js.append("      </div>");
 
         js.append("    </div>"); 
@@ -160,7 +127,7 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
         
-        // 4. LOGIC
+        // 3. LOGIC FUNCTIONS
         js.append("  window.switchTab = function(id, el) {");
         js.append("    var views = document.querySelectorAll('.view-section');");
         js.append("    for(var i=0; i<views.length; i++) { views[i].classList.remove('active'); }");
@@ -169,6 +136,40 @@ public class MainActivity extends Activity {
         js.append("    for(var j=0; j<icons.length; j++) { icons[j].classList.remove('active'); }");
         js.append("    el.classList.add('active');");
         js.append("  };");
+
+        // --- NEW: THE SCANNER FUNCTION ---
+        js.append("  window.scanData = function() {");
+        js.append("    var count = 0;");
+        js.append("    var html = '';");
+        
+        js.append("    var rows = document.querySelectorAll('.grid.grid-cols-8.border-b');");
+        js.append("    if(rows.length > 0) {");
+        js.append("      var day = new Date().getDay(); var col = (day===0)?7:day;");
+        js.append("      for(var i=0; i<rows.length; i++) {");
+        js.append("        var row = rows[i];");
+        js.append("        var txt = row.children[col] ? row.children[col].innerText.toLowerCase() : '';");
+        js.append("        if(txt.indexOf('scheduled') !== -1) {");
+        js.append("          count++;");
+        js.append("          var userEl = row.querySelector('.text-gray-900.truncate');");
+        js.append("          var username = userEl ? userEl.innerText : 'Unknown';");
+        js.append("          html += \"<div class='card' style='border-left:3px solid #00f3ff; margin-bottom:10px;'>\";");
+        js.append("          html += \"<div style='font-weight:bold; color:white; font-size:16px;'>\" + username + \"</div>\";");
+        js.append("          html += \"<div style='font-size:12px; color:#888; margin-top:4px;'>STATUS: READY FOR UPLOAD</div>\";");
+        js.append("          html += \"<button class='btn' onclick='alert(\\\"Uploading...\\\")'>UPLOAD NOW</button>\";");
+        js.append("          html += \"</div>\";");
+        js.append("        }");
+        js.append("      }");
+        js.append("    }");
+
+        js.append("    if(html === '') html = '<p style=\"color:#666\">No scheduled uploads found.</p>';");
+        
+        // Update the UI
+        js.append("    document.getElementById('dash-count').innerText = count;");
+        js.append("    document.getElementById('calendar-feed').innerHTML = html;");
+        js.append("  };");
+        
+        // 4. AUTO-START SCAN (Wait 3 seconds for data to load)
+        js.append("  setTimeout(function() { window.scanData(); }, 3000);");
         
         js.append("})()");
 
