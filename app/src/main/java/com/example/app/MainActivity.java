@@ -38,7 +38,7 @@ public class MainActivity extends Activity {
                 
                 // REDIRECT: If we land on Dashboard, go to Calendar
                 if (url.contains("/dashboard") && !url.contains("calendar")) {
-                    Toast.makeText(MainActivity.this, "Rerouting to Command Deck...", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Initializing System...", Toast.LENGTH_SHORT).show();
                     view.loadUrl("https://app.tokportal.com/account-manager/calendar");
                     return;
                 }
@@ -54,8 +54,7 @@ public class MainActivity extends Activity {
         mWebView.loadUrl("https://app.tokportal.com/account-manager/calendar");
     }
 
-    // --- THE FULL DASHBOARD EMBEDDED ---
-    // This looks messy here, but it guarantees the UI loads perfectly on your phone.
+    // --- THE INTERACTIVE DASHBOARD ---
     private void injectFullCyberpunkUI(WebView view) {
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
@@ -63,7 +62,7 @@ public class MainActivity extends Activity {
         // Safety: Don't run twice
         js.append("  if(document.getElementById('cyber-root')) return;");
 
-        // 1. DATA SCRAPING (Get real mission count)
+        // 1. DATA SCRAPING
         js.append("  var count = 0;");
         js.append("  var rows = document.querySelectorAll('.grid.grid-cols-8.border-b');");
         js.append("  if(rows.length > 0) {");
@@ -74,89 +73,105 @@ public class MainActivity extends Activity {
         js.append("    });");
         js.append("  }");
 
-        // 2. DEFINE CSS (The Full Cyberpunk Style)
+        // 2. CSS STYLES
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
-        js.append("    body > *:not(#cyber-root) { display: none !important; }"); // HIDE OLD SITE
-        js.append("    #cyber-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; overflow-y:auto; display:flex; flex-direction:column; }");
+        js.append("    body > *:not(#cyber-root) { display: none !important; }"); 
+        js.append("    #cyber-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; display:flex; flex-direction:column; }");
         
-        // Sidebar & Nav Styles
-        js.append("    .top-bar { padding: 20px; display:flex; justify-content:space-between; align-items:center; background:rgba(19,19,31,0.9); border-bottom:1px solid rgba(255,255,255,0.1); }");
+        // Layout
+        js.append("    .top-bar { padding:20px; display:flex; justify-content:space-between; align-items:center; background:rgba(19,19,31,0.9); border-bottom:1px solid rgba(255,255,255,0.1); }");
         js.append("    .logo { font-family:'Orbitron'; font-size:20px; color:#00f3ff; font-weight:bold; letter-spacing:1px; }");
-        js.append("    .status { font-size:10px; color:#00ff9d; border:1px solid #00ff9d; padding:2px 6px; border-radius:4px; }");
+        js.append("    .content-area { flex:1; overflow-y:auto; padding:20px; position:relative; }");
         
-        // Content Styles
-        js.append("    .content-area { padding:20px; flex:1; }");
-        js.append("    .section-title { font-family:'Orbitron'; font-size:18px; margin-bottom:15px; color:white; }");
-        
-        // Cards
-        js.append("    .card { background:#13131f; border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:20px; margin-bottom:15px; position:relative; }");
-        js.append("    .card-label { color:#8b9bb4; font-size:12px; margin-bottom:5px; }");
+        // Views (Tabs)
+        js.append("    .view-section { display:none; animation: fadeIn 0.3s; }");
+        js.append("    .view-section.active { display:block; }");
+        js.append("    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }");
+
+        // Components
+        js.append("    .card { background:#13131f; border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:20px; margin-bottom:15px; }");
         js.append("    .card-val { font-family:'Orbitron'; font-size:32px; color:white; }");
-        js.append("    .card.highlight { border-color:#00f3ff; box-shadow:0 0 15px rgba(0,243,255,0.1); }");
-        
-        // Mission List
-        js.append("    .mission { display:flex; align-items:center; justify-content:space-between; background:#1a1a2e; padding:15px; border-radius:8px; margin-bottom:10px; border-left:3px solid #00f3ff; }");
-        js.append("    .btn { background:transparent; border:1px solid #00f3ff; color:#00f3ff; padding:8px 16px; border-radius:4px; font-weight:bold; }");
-        
-        // Bottom Tabs
+        js.append("    .btn { background:transparent; border:1px solid #00f3ff; color:#00f3ff; padding:8px 16px; border-radius:4px; font-weight:bold; width:100%; margin-top:10px; }");
+        js.append("    .btn:active { background: #00f3ff; color: black; }");
+
+        // Tabs
         js.append("    .tabs { display:flex; justify-content:space-around; background:#0f0f1a; padding:15px; border-top:1px solid rgba(255,255,255,0.1); }");
-        js.append("    .tab-icon { color:#666; font-size:20px; }");
-        js.append("    .tab-icon.active { color:#00f3ff; text-shadow:0 0 10px #00f3ff; }");
+        js.append("    .tab-icon { color:#666; font-size:20px; padding:10px; transition:0.2s; }");
+        js.append("    .tab-icon.active { color:#00f3ff; text-shadow:0 0 10px #00f3ff; transform:scale(1.2); }");
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
-        // 3. BUILD HTML STRUCTURE
+        // 3. HTML STRUCTURE
         js.append("  var root = document.createElement('div');");
         js.append("  root.id = 'cyber-root';");
         js.append("  root.innerHTML = `");
         
         // Header
-        js.append("    <div class='top-bar'>");
-        js.append("      <div class='logo'>TOKPORTAL</div>");
-        js.append("      <div class='status'>SYSTEM ONLINE</div>");
-        js.append("    </div>");
+        js.append("    <div class='top-bar'><div class='logo'>TOKPORTAL</div><div style='color:#00ff9d; font-size:10px; border:1px solid #00ff9d; padding:2px 5px; border-radius:4px;'>ONLINE</div></div>");
         
-        // Scrollable Content
+        // --- CONTENT AREA ---
         js.append("    <div class='content-area'>");
         
-        // Stat Cards
-        js.append("      <div class='card highlight'>");
-        js.append("        <div class='card-label'>PENDING MISSIONS</div>");
-        js.append("        <div class='card-val'>` + count + `</div>");
-        js.append("      </div>");
-        
-        js.append("      <div class='card' style='border-left:4px solid #bd00ff'>");
-        js.append("        <div class='card-label'>TOTAL XP</div>");
-        js.append("        <div class='card-val' style='color:#bd00ff'>1,250</div>");
-        js.append("      </div>");
-        
-        // Mission List
-        js.append("      <div class='section-title'>ACTIVE CONTRACTS</div>");
-        js.append("      <div id='mission-container'>");
-        js.append("        <div class='mission'>");
-        js.append("          <div><div style='font-weight:bold; color:white;'>Daily Engagement</div><div style='font-size:12px; color:#888;'>Reply to 5 comments</div></div>");
-        js.append("          <button class='btn'>START</button>");
+        // VIEW 1: OVERVIEW (Default)
+        js.append("      <div id='view-1' class='view-section active'>");
+        js.append("        <div class='card' style='border-color:#00f3ff; box-shadow:0 0 15px rgba(0,243,255,0.1);'>");
+        js.append("          <div style='color:#8b9bb4; font-size:12px;'>PENDING UPLOADS</div>");
+        js.append("          <div class='card-val'>` + count + `</div>");
+        js.append("        </div>");
+        js.append("        <div class='card' style='border-left:4px solid #bd00ff'>");
+        js.append("          <div style='color:#8b9bb4; font-size:12px;'>TOTAL XP</div>");
+        js.append("          <div class='card-val' style='color:#bd00ff'>1,250</div>");
+        js.append("        </div>");
+        js.append("        <h3 style='font-family:Orbitron; margin-top:20px;'>ACTIVE CONTRACTS</h3>");
+        js.append("        <div class='card' style='border-left:3px solid #00f3ff;'>");
+        js.append("          <div style='font-weight:bold;'>Daily Engagement</div>");
+        js.append("          <div style='font-size:12px; color:#888; margin-bottom:10px;'>Reply to 5 comments</div>");
+        js.append("          <button class='btn' onclick='alert(\"Mission Started!\")'>START</button>");
         js.append("        </div>");
         js.append("      </div>");
+
+        // VIEW 2: MISSIONS (Placeholder)
+        js.append("      <div id='view-2' class='view-section'>");
+        js.append("        <h2 style='font-family:Orbitron'>Mission Log</h2>");
+        js.append("        <p style='color:#888'>No other active missions.</p>");
+        js.append("      </div>");
+
+        // VIEW 3: CALENDAR (Placeholder)
+        js.append("      <div id='view-3' class='view-section'>");
+        js.append("        <h2 style='font-family:Orbitron'>Calendar</h2>");
+        js.append("        <p style='color:#888'>Syncing with TokPortal...</p>");
+        js.append("      </div>");
+
+        js.append("    </div>"); // End Content
         
-        js.append("    </div>"); // End Content Area
-        
-        // Bottom Navigation (Tabs)
+        // --- BOTTOM TABS ---
         js.append("    <div class='tabs'>");
-        js.append("      <i class='fa-solid fa-chart-line tab-icon'></i>");
-        js.append("      <i class='fa-solid fa-crosshairs tab-icon active'></i>");
-        js.append("      <i class='fa-solid fa-calendar tab-icon'></i>");
-        js.append("      <i class='fa-solid fa-gear tab-icon'></i>");
+        js.append("      <i class='fa-solid fa-chart-line tab-icon active' onclick='switchTab(1, this)'></i>");
+        js.append("      <i class='fa-solid fa-crosshairs tab-icon' onclick='switchTab(2, this)'></i>");
+        js.append("      <i class='fa-solid fa-calendar tab-icon' onclick='switchTab(3, this)'></i>");
+        js.append("      <i class='fa-solid fa-gear tab-icon' onclick='location.reload()'></i>"); // Gear = Refresh for now
         js.append("    </div>");
         
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
+        
+        // 4. JAVASCRIPT LOGIC (The wiring)
+        js.append("  window.switchTab = function(id, el) {");
+        js.append("    // Hide all views");
+        js.append("    document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));");
+        js.append("    // Show selected view");
+        js.append("    document.getElementById('view-'+id).classList.add('active');");
+        js.append("    // Update icons");
+        js.append("    document.querySelectorAll('.tab-icon').forEach(i => i.classList.remove('active'));");
+        js.append("    el.classList.add('active');");
+        js.append("  };");
+        
         js.append("})()");
 
-        // 4. INJECT
+        // 5. INJECT
         view.loadUrl(js.toString());
     }
     
