@@ -175,7 +175,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: VIDEO SELECTOR SCREEN (DIAGNOSTIC MODE)
+    // MODULE 2: VIDEO SELECTOR SCREEN (Final Class Anchor Scraper)
     // =========================================================
     private void injectVideoSelector(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -187,41 +187,62 @@ public class MainActivity extends Activity {
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
         js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); 
         js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; padding:15px; overflow-y:auto; }");
-        js.append("    .diag-item { border: 1px dashed #00f3ff; margin-bottom: 5px; padding: 5px; font-size: 10px; color: #00ff9d; }");
         js.append("    .sel-btn { background:#13131f; border:1px solid #00f3ff; color:white; padding:15px; margin-bottom:10px; text-align:left; font-weight:bold; width:100%; display:block; }");
+        js.append("    .sel-status { float:right; color:#00f3ff; font-weight:normal; }");
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
         js.append("  var root = document.createElement('div');");
         js.append("  root.id = 'selector-root';");
         js.append("  root.innerHTML = `");
-        js.append("    <h2 style='font-family:Orbitron; color:white; margin-bottom:10px;'>DIAGNOSTIC SCAN RESULTS</h2>");
-        js.append("    <p style='color:#ccc; margin-bottom:10px;'>Found ALL text elements with classes (h3, h4, font-bold) and all buttons:</p>");
-        js.append("    <div id='diagnostic-list'>Scanning...</div>");
+        js.append("    <h2 style='font-family:Orbitron; color:white; margin-bottom:20px;'>TARGET ACQUISITION</h2>");
+        js.append("    <p style='color:#ccc; margin-bottom:10px;'>Select the video mission to initiate cockpit view:</p>");
+        js.append("    <div id='video-list'>Scanning videos...</div>");
         js.append("    <button class='sel-btn' style='margin-top:20px; border-color:#666; color:#666;' onclick='history.back()'>BACK TO CALENDAR</button>");
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
-        // --- DIAGNOSTIC SCRAPER: Dump all key text elements ---
-        js.append("  var listContainer = document.getElementById('diagnostic-list');");
-        js.append("  var elements = document.querySelectorAll('h3, h4, .font-bold, button');"); // Broad search for relevant text/buttons
-        js.append("  var html = '';");
+        // --- SCRAPER LOGIC: Anchor to the Button's Class, and climb DOM aggressively ---
+        js.append("  var currentUrl = window.location.href.split('#')[0];");
+        js.append("  var listContainer = document.getElementById('video-list');");
         
-        js.append("  elements.forEach(function(el, index) {");
-        js.append("    var text = el.innerText.trim();");
-        js.append("    var tag = el.tagName;");
-        js.append("    var classes = el.className;");
-        js.append("    if (text.length > 2 && text !== '...'){"); // Filter out noise
-        js.append("      html += '<div class=\"diag-item\">[' + tag + '] [' + classes.substring(0, 15) + '] ' + text.substring(0, 50) + '...</div>';");
+        // Find all buttons that contain the unique class fragment 'flex items-cent' identified in the diagnostic scan
+        js.append("  var uploadButtons = document.querySelectorAll('button[class*=\"flex items-cent\"]');"); 
+        
+        js.append("  var html = '';");
+        js.append("  var videoCount = 0;");
+        js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
+        
+        js.append("  uploadButtons.forEach(function(btn, index) {");
+        
+        // Traverse up to find the main card container
+        js.append("    var card = btn.parentElement;");
+        js.append("    var titleEl = null;");
+        js.append("    var climbCount = 0;");
+        js.append("    while(card && climbCount < 10) {");
+        js.append("        titleEl = card.querySelector('h3, h4, strong');");
+        js.append("        if (titleEl && titleEl.innerText.includes('Glippy')) break;"); // Success if we find title
+        js.append("        card = card.parentElement;"); // Climb higher
+        js.append("        climbCount++;");
+        js.append("    }");
+        
+        js.append("    if (titleEl) {");
+        js.append("      videoCount++;");
+        js.append("      var status = titleEl.parentElement.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
+        js.append("      var cleanTitle = titleEl.innerText.trim();");
+        // Pass the index (which video card to click later) and username
+        js.append("      var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
+        js.append("      html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + '<span class=\"sel-status\">' + status + '</span></button>';");
         js.append("    }");
         js.append("  });");
 
-        js.append("  if(html.length > 0) { listContainer.innerHTML = html; }");
-        js.append("  else { listContainer.innerHTML = '<p style=\"color:#f00;\">No usable text elements found.</p>'; }");
+        js.append("  if(videoCount > 0) { listContainer.innerHTML = html; }");
+        js.append("  else { listContainer.innerHTML = '<p style=\"color:#f00;\">No video cards detected. Try refreshing.</p>'; }");
 
         js.append("})()");
         view.loadUrl(js.toString());
     }
+
     // =========================================================
     // MODULE 3: MISSION COCKPIT (Final Aggregation Screen)
     // =========================================================
@@ -287,9 +308,17 @@ public class MainActivity extends Activity {
         // --- AUTO-DRILL LOGIC (INITIALIZE UPLOAD) ---
         js.append("  window.triggerRealUpload = function() {");
         js.append("    var buttons = document.getElementsByTagName('button'); var found = false;");
-        js.append("    for(var i=0; i<buttons.length; i++) { if(buttons[i].innerText.toLowerCase().includes('upload this video')) { buttons[i].click(); found = true; break; } }");
-        js.append("    if(!found) { var links = document.getElementsByTagName('a'); for(var j=0; j<links.length; j++) { if(links[j].innerText.toLowerCase().includes('upload')) { links[j].click(); found=true; break; } } }");
         
+        // Find the Nth "Upload this video" button corresponding to the index in the URL hash
+        js.append("    var videoIndex = parseInt(new URLSearchParams(window.location.hash.slice(1)).get('video')) || 0;");
+        js.append("    var uploadBtns = [];");
+        js.append("    for(var i=0; i<buttons.length; i++) { if(buttons[i].innerText.toLowerCase().includes('upload this video')) { uploadBtns.push(buttons[i]); } }");
+        
+        js.append("    if(uploadBtns.length > videoIndex) {");
+        js.append("       uploadBtns[videoIndex].click();");
+        js.append("       found = true;");
+        js.append("    }");
+
         js.append("    if(found) {");
         js.append("       document.getElementById('cockpit-root').style.display = 'none';");
         js.append("       document.getElementById('return-btn').style.display = 'block';");
@@ -303,11 +332,13 @@ public class MainActivity extends Activity {
         // --- DATA HARVEST (Baton Pass + Targeted Caption Scrape) ---
         js.append("  setTimeout(function() {");
         
+        // 1. GET USER FROM URL HASH
         js.append("    if(window.location.hash.includes('user=')) {");
         js.append("       var user = decodeURIComponent(window.location.hash.split('user=')[1].split('&')[0]);");
         js.append("       document.getElementById('cp-user').innerText = user;");
         js.append("    }");
         
+        // 2. SCRAPE CAPTION (Look relative to the Upload Button)
         js.append("    var captionFound = false;");
         js.append("    var possibleCaptions = document.querySelectorAll('p, div, span, strong');"); 
         js.append("    for(var i=0; i<possibleCaptions.length; i++) {");
