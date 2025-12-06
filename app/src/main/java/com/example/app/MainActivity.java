@@ -54,21 +54,25 @@ public class MainActivity extends Activity {
 
     // --- CENTRAL ROUTER LOGIC ---
     private void handleUrl(WebView view, String url) {
+        // PRIORITY 1: MISSION COCKPIT (Specific Video Selected)
         if (url.contains("#video=")) {
             injectMissionCockpit(view);
             return;
         }
         
+        // PRIORITY 2: VIDEO SELECTOR SCREEN (On Order Details Page)
         if (url.contains("order") || url.contains("details") || url.contains("job")) {
             injectVideoSelector(view);
             return;
         }
 
+        // PRIORITY 3: COMMAND DECK (Calendar)
         if (url.contains("/calendar")) {
             injectDashboardUI(view);
             return;
         }
 
+        // PRIORITY 4: AUTO-PILOT
         if (url.contains("account-manager") && !url.contains("login")) {
             view.loadUrl("https://app.tokportal.com/account-manager/calendar");
         }
@@ -175,7 +179,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: VIDEO SELECTOR SCREEN (Account-Agnostic Scraper)
+    // MODULE 2: VIDEO SELECTOR SCREEN (Gold Standard Selector)
     // =========================================================
     private void injectVideoSelector(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -202,35 +206,27 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
-        // --- SCRAPER LOGIC: Anchor to the Button's Class, and climb DOM aggressively ---
+        // --- SCRAPER LOGIC: Uses Confirmed HTML Structure ---
         js.append("  var currentUrl = window.location.href.split('#')[0];");
         js.append("  var listContainer = document.getElementById('video-list');");
         
-        // Anchor to the unique class fragment 'flex items-cent' identified in the diagnostic scan
-        js.append("  var uploadButtons = document.querySelectorAll('button[class*=\"flex items-cent\"]');"); 
+        // **GOLD STANDARD SELECTOR:** Finds the card container based on confirmed classes.
+        js.append("  var videoCards = document.querySelectorAll('div[class*=\"rounded-lg shadow-sm border-gray-200\"]');"); 
         
         js.append("  var html = '';");
         js.append("  var videoCount = 0;");
         js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
         
-        js.append("  uploadButtons.forEach(function(btn, index) {");
+        js.append("  videoCards.forEach(function(card, index) {");
         
-        // **HYPER-TRAVERSAL:** Find the Title by climbing up to a stable container
-        js.append("    var card = btn;"); 
-        js.append("    var titleEl = null;");
-        js.append("    var climbCount = 0;");
-        js.append("    while(card && climbCount < 10) {");
-        // Look for the title inside the parent. Title is likely h3/h4/strong and NOT too short/generic.
-        js.append("        titleEl = card.querySelector('h3, h4, strong');"); 
-        // Check if the title element exists and its text is long enough to be a title (>15 chars)
-        js.append("        if (titleEl && titleEl.innerText.length > 15 && !titleEl.innerText.includes('Target period')) break;"); 
-        js.append("        card = card.parentElement;"); // Climb higher
-        js.append("        climbCount++;");
-        js.append("    }");
+        // 1. Find Title (h3 tag)
+        js.append("    var titleEl = card.querySelector('h3');");
         
-        js.append("    if (titleEl) {");
+        // 2. Determine Status (based on text content of the card)
+        js.append("    var status = card.innerText.includes('Accepted') ? 'READY' : 'SCHEDULED';");
+        
+        js.append("    if (titleEl && titleEl.innerText.length > 5) {"); 
         js.append("      videoCount++;");
-        js.append("      var status = card.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
         js.append("      var cleanTitle = titleEl.innerText.trim();");
         // Pass the index (which video card to click later) and username
         js.append("      var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
@@ -313,9 +309,8 @@ public class MainActivity extends Activity {
         js.append("    var buttons = document.getElementsByTagName('button'); var found = false;");
         
         js.append("    var videoIndex = parseInt(new URLSearchParams(window.location.hash.slice(1)).get('video')) || 0;");
-        js.append("    var uploadBtns = [];");
-        js.append("    for(var i=0; i<buttons.length; i++) { if(buttons[i].innerText.toLowerCase().includes('upload this video')) { uploadBtns.push(buttons[i]); } }");
-        
+        js.append("    var uploadBtns = document.querySelectorAll('button.btn-primary');"); // Use confirmed class
+
         js.append("    if(uploadBtns.length > videoIndex) {");
         js.append("       uploadBtns[videoIndex].click();");
         js.append("       found = true;");
@@ -340,7 +335,7 @@ public class MainActivity extends Activity {
         js.append("       document.getElementById('cp-user').innerText = user;");
         js.append("    }");
         
-        // 2. SCRAPE CAPTION (Look for long text/hashtags, not 'support')
+        // 2. SCRAPE CAPTION (Based on text content and length)
         js.append("    var captionFound = false;");
         js.append("    var possibleCaptions = document.querySelectorAll('p, div, span, strong');"); 
         js.append("    for(var i=0; i<possibleCaptions.length; i++) {");
