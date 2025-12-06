@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOKPORTAL // COCKPIT</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050505;
+            --neon-red: #ff003c;
+            --neon-blue: #00f3ff;
+            --neon-green: #00ff66;
+            --neon-purple: #bd00ff;
+            --neon-gold: #ffd700;
+            --border: #333;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--bg-color);
+            color: #e0e0e0;
+            margin: 0;
+            padding: 10px;
+        }
+
+        /* --- HEADER --- */
+        header {
+            border-bottom: 1px solid var(--border); 
+            padding-bottom: 15px; margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        h1 { margin: 0; font-size: 20px; letter-spacing: 2px; color: #fff; text-transform: uppercase; }
+        .sub-head { font-family: 'Share Tech Mono'; color: var(--neon-blue); font-size: 12px; }
+
+        /* --- CARDS --- */
+        .panel-header {
+            font-family: 'Share Tech Mono'; color: #666; font-size: 12px; letter-spacing: 1px;
+            margin-bottom: 10px; margin-top: 20px; border-bottom: 1px solid #222; padding-bottom: 5px;
+        }
+
+        /* DATA ROW (For Copying) */
+        .data-row {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #111; border: 1px solid #222; padding: 12px; margin-bottom: 8px; border-radius: 4px;
+        }
+        .data-key { font-family: 'Share Tech Mono'; font-size: 11px; color: #555; }
+        .data-val { font-family: 'Share Tech Mono'; font-size: 14px; color: #fff; letter-spacing: 0.5px; }
+        
+        .copy-btn {
+            background: #222; color: var(--neon-blue); border: 1px solid #333;
+            font-size: 10px; padding: 4px 8px; border-radius: 2px; cursor: pointer;
+            font-family: 'Share Tech Mono'; text-transform: uppercase;
+        }
+        .copy-btn:active { background: var(--neon-blue); color: #000; }
+
+        /* TIMELINE ROW */
+        .timeline-row {
+            display: flex; gap: 15px; margin-bottom: 15px; align-items: center;
+        }
+        .tl-date {
+            font-family: 'Share Tech Mono'; font-size: 12px; color: #555; width: 30px; text-align: center;
+        }
+        .tl-card {
+            flex-grow: 1; background: #0c0c0c; border: 1px solid #333; border-left: 3px solid #333;
+            padding: 12px; border-radius: 4px; position: relative;
+        }
+        
+        /* STATUS COLORS */
+        .posted { border-left-color: var(--neon-green); }
+        .ready { border-left-color: var(--neon-blue); background: rgba(0, 243, 255, 0.05); }
+        .upcoming { border-left-color: #444; opacity: 0.6; }
+
+        .card-title { font-size: 14px; font-weight: bold; color: #ddd; display: block;}
+        .card-sub { font-family: 'Share Tech Mono'; font-size: 10px; color: #666; display: block; margin-top: 4px;}
+
+        /* ACTION BUTTON */
+        .btn-submit {
+            width: 100%; background: var(--neon-green); color: #000; border: none; padding: 15px;
+            font-weight: bold; font-family: 'Rajdhani'; font-size: 18px; letter-spacing: 1px;
+            cursor: pointer; text-transform: uppercase; margin-top: 30px; margin-bottom: 50px;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+        }
+        .btn-submit:active { background: #fff; }
+
+        /* BACK BUTTON */
+        .back-nav {
+            margin-bottom: 20px; display: inline-block; 
+            color: #666; text-decoration: none; font-family: 'Share Tech Mono'; font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <a href="index.html" class="back-nav">&lt; BACK TO MENU</a>
+
+    <header>
+        <div>
+            <h1>MISSION COCKPIT</h1>
+            <span class="sub-head">ORDER #3626A6 // GLIPPY</span>
+        </div>
+        <div style="font-size: 24px;">⚡</div>
+    </header>
+
+    <div class="panel-header">/// ASSET DATA</div>
+
+    <div class="data-row">
+        <div>
+            <span class="data-key">USER</span><br>
+            <span class="data-val">glippy.trimrx</span>
+        </div>
+        <button class="copy-btn">COPY</button>
+    </div>
+
+    <div class="data-row">
+        <div>
+            <span class="data-key">PASS</span><br>
+            <span class="data-val" style="color:var(--neon-green)">TikTok123!</span>
+        </div>
+        <button class="copy-btn">COPY</button>
+    </div>
+
+    <div class="panel-header">/// MISSION LOG</div>
+
+    <div class="timeline-row">
+        <div class="tl-date">SUN<br>23</div>
+        <div class="tl-card posted">
+            <span class="card-title">Video 1: Intro</span>
+            <span class="card-sub">STATUS: POSTED</span>
+        </div>
+    </div>
+
+    <div class="timeline-row">
+        <div class="tl-date" style="color:var(--neon-blue)">MON<br>24</div>
+        <div class="tl-card ready">
+            <span class="card-title">Video 2: Motivation</span>
+            <span class="card-sub" style="color:var(--neon-blue)">ACTION REQUIRED</span>
+        </div>
+    </div>
+
+    <div class="timeline-row">
+        <div class="tl-date">TUE<br>25</div>
+        <div class="tl-card upcoming">
+            <span class="card-title">Video 3: Tips</span>
+            <span class="card-sub">SCHEDULED</span>
+        </div>
+    </div>
+
+    <button class="btn-submit">CONFIRM UPLOAD</button>
+
+    <script>
+        // Copy Function
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Get the text from the .data-val in the same row
+                const text = this.parentElement.querySelector('.data-val').innerText;
+                
+                // Android Copy Hack
+                const input = document.createElement('input');
+                input.value = text;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                
+                // Visual Feedback
+                const originalText = this.innerText;
+                this.innerText = "COPIED!";
+                this.style.color = "#00ff66";
+                setTimeout(() => { 
+                    this.innerText = originalText; 
+                    this.style.color = "";
+                }, 1000);
+            });
+        });
+    </script>
+</body>
+</html>
