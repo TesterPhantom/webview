@@ -213,7 +213,7 @@ public class MainActivity extends Activity {
         js.append("    attempts++;");
         
         // **GOLD STANDARD SELECTOR:** Finds the card container based on confirmed class.
-        js.append("    var videoCards = document.querySelectorAll('div[class*=\"rounded-lg shadow-sm border-gray-200\"]:not([class*=\"border-green\"])');"); // Exclude validated cards
+        js.append("    var videoCards = document.querySelectorAll('div[class*=\"rounded-lg shadow-sm border-gray-200\"]:not([class*=\"border-green\"])');"); 
         
         js.append("    if (videoCards.length > 0) {");
         js.append("      clearInterval(poller);");
