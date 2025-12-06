@@ -7,6 +7,7 @@ import android.webkit.CookieManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
@@ -26,7 +27,7 @@ public class MainActivity extends Activity {
         webSettings.setDomStorageEnabled(true);
         webSettings.setDatabaseEnabled(true);
 
-        // 2. LONG TERM MEMORY (COOKIE SETUP)
+        // 2. LONG TERM MEMORY
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(mWebView, true);
 
@@ -35,13 +36,19 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 
-                // A. DASHBOARD MODE (Calendar)
+                // A. REDIRECT: Fixes the white screen if you land on the wrong page
+                if (url.contains("/dashboard") && !url.contains("calendar")) {
+                    // Toast.makeText(MainActivity.this, "Rerouting to Calendar...", Toast.LENGTH_SHORT).show();
+                    view.loadUrl("https://app.tokportal.com/account-manager/calendar");
+                    return;
+                }
+
+                // B. DASHBOARD MODE (The Calendar)
                 if (url.contains("/calendar")) {
                     injectDashboardUI(view);
                 } 
-                // B. COCKPIT MODE (Order Details / Upload Page)
-                // Looks for URLs containing "order" to trigger the cockpit
-                else if (url.contains("order")) {
+                // C. COCKPIT MODE (Order Details)
+                else if (url.contains("order") || url.contains("details")) {
                     injectMissionCockpit(view);
                 }
             }
@@ -51,32 +58,32 @@ public class MainActivity extends Activity {
         mWebView.loadUrl("https://app.tokportal.com/account-manager/calendar");
     }
 
-    // --- MODE 1: THE DASHBOARD ---
+    // --- MODE 1: THE DASHBOARD (Calendar View) ---
     private void injectDashboardUI(WebView view) {
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
         js.append("  if(document.getElementById('cyber-root')) return;");
         
-        // CSS STYLES
+        // CSS
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
         js.append("    body > *:not(#cyber-root) { display: none !important; }"); 
         js.append("    #cyber-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; display:flex; flex-direction:column; }");
-        js.append("    .card { background:#13131f; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; margin-bottom:8px; }");
-        js.append("    .btn { background:transparent; border:1px solid #00f3ff; color:#00f3ff; padding:6px; border-radius:4px; font-weight:bold; width:100%; margin-top:5px; }");
         js.append("    .top-bar { padding:15px; background:rgba(19,19,31,0.95); border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center; }");
+        js.append("    .card { background:#13131f; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; margin-bottom:8px; }");
+        js.append("    .btn { background:transparent; border:1px solid #00f3ff; color:#00f3ff; padding:8px; border-radius:4px; font-weight:bold; width:100%; margin-top:5px; }");
         js.append("    .content-area { flex:1; overflow-y:auto; padding:15px; }");
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
-        // HTML STRUCTURE
+        // HTML
         js.append("  var root = document.createElement('div');");
         js.append("  root.id = 'cyber-root';");
         js.append("  root.innerHTML = `");
         js.append("    <div class='top-bar'><span style='font-family:Orbitron; color:#00f3ff;'>COMMAND DECK</span><span style='color:#00ff9d; font-size:10px; border:1px solid #00ff9d; padding:2px;'>ONLINE</span></div>");
-        js.append("    <div class='content-area' id='calendar-feed'><p style='color:#666'>Scanning...</p></div>");
+        js.append("    <div class='content-area' id='calendar-feed'><p style='color:#666; text-align:center; margin-top:20px;'>Scanning Network...</p></div>");
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
@@ -96,7 +103,7 @@ public class MainActivity extends Activity {
         js.append("          var username = userEl ? userEl.innerText : 'Unknown';");
         js.append("          html += \"<div class='card' style='border-left:3px solid #00f3ff;'>\";");
         js.append("          html += \"<div style='font-weight:bold;'>\" + username + \"</div>\";");
-        // NAVIGATE TO COCKPIT
+        js.append("          html += \"<div style='font-size:12px; color:#888;'>STATUS: READY</div>\";");
         js.append("          html += \"<button class='btn' onclick='location.href=\\\"\" + url + \"\\\"'>OPEN COCKPIT</button>\";");
         js.append("          html += \"</div>\";");
         js.append("        }");
@@ -109,7 +116,7 @@ public class MainActivity extends Activity {
         view.loadUrl(js.toString());
     }
 
-    // --- MODE 2: THE MISSION COCKPIT ---
+    // --- MODE 2: THE MISSION COCKPIT (Mobile Optimized) ---
     private void injectMissionCockpit(WebView view) {
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
@@ -120,17 +127,21 @@ public class MainActivity extends Activity {
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap');");
         js.append("    body > *:not(#cockpit-root) { display: none !important; }");
-        js.append("    #cockpit-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:#00f3ff; z-index:99999; font-family:'Share Tech Mono', monospace; display:flex; flex-direction:column; padding:10px; box-sizing:border-box; }");
+        // CHANGED: Flex Column for Mobile instead of Grid
+        js.append("    #cockpit-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:#00f3ff; z-index:99999; font-family:'Share Tech Mono', monospace; display:flex; flex-direction:column; padding:10px; overflow-y:auto; }");
         
-        js.append("    .cp-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:10px; }");
+        js.append("    .cp-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:15px; }");
         js.append("    .cp-title { font-family:'Orbitron'; font-size:20px; letter-spacing:2px; color:white; }");
         
-        js.append("    .cp-panel { border:1px solid rgba(0,243,255,0.2); background:rgba(19,19,31,0.5); padding:15px; margin-bottom:10px; }");
-        js.append("    .cp-panel-title { color:#666; font-size:12px; margin-bottom:10px; border-bottom:1px solid #333; text-transform:uppercase; }");
+        js.append("    .cp-panel { border:1px solid rgba(0,243,255,0.2); background:rgba(19,19,31,0.5); padding:15px; margin-bottom:15px; border-radius:4px; }");
+        js.append("    .cp-panel-title { color:#666; font-size:12px; margin-bottom:10px; border-bottom:1px solid #333; text-transform:uppercase; letter-spacing:1px; }");
         
         js.append("    .data-row { display:flex; justify-content:space-between; margin-bottom:8px; align-items:center; }");
-        js.append("    .data-val { color:white; background:#111; padding:4px; border:1px solid #333; }");
-        js.append("    .action-btn { background:rgba(0,243,255,0.1); border:1px solid #00f3ff; color:#00f3ff; padding:12px; margin-bottom:8px; text-align:center; cursor:pointer; font-weight:bold; }");
+        js.append("    .data-val { color:white; background:#111; padding:6px; border:1px solid #333; font-size:14px; }");
+        js.append("    .btn-copy { background:#00f3ff; color:black; border:none; padding:4px 8px; font-weight:bold; cursor:pointer; font-size:10px; border-radius:2px; }");
+
+        js.append("    .action-btn { background:rgba(0,243,255,0.1); border:1px solid #00f3ff; color:#00f3ff; padding:15px; margin-bottom:10px; text-align:center; cursor:pointer; font-weight:bold; width:100%; display:block; }");
+        js.append("    .action-btn:active { background:#00f3ff; color:black; }");
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
@@ -138,40 +149,56 @@ public class MainActivity extends Activity {
         js.append("  var root = document.createElement('div');");
         js.append("  root.id = 'cockpit-root';");
         js.append("  root.innerHTML = `");
-        js.append("    <div class='cp-header'><div class='cp-title'>MISSION COCKPIT</div><div style='color:#00ff9d'>ONLINE</div></div>");
+        js.append("    <div class='cp-header'><div class='cp-title'>MISSION COCKPIT</div><div style='color:#00ff9d; font-size:10px; border:1px solid #00ff9d; padding:2px;'>SECURE</div></div>");
 
-        // PANEL 1: CREDENTIALS (Placeholder)
+        // PANEL 1: TARGET INFO
         js.append("    <div class='cp-panel'>");
-        js.append("      <div class='cp-panel-title'>/// CREDENTIALS</div>");
-        js.append("      <div class='data-row'><span>USER</span><span class='data-val'>glippy.trimrx</span></div>");
-        js.append("      <div class='data-row'><span>PASS</span><span class='data-val'>********</span></div>");
+        js.append("      <div class='cp-panel-title'>/// TARGET CREDENTIALS</div>");
+        js.append("      <div class='data-row'><span>USER</span><span class='data-val' id='cp-user'>--</span><button class='btn-copy'>COPY</button></div>");
+        js.append("      <div class='data-row'><span>PASS</span><span class='data-val'>********</span><button class='btn-copy'>COPY</button></div>");
         js.append("    </div>");
 
-        // PANEL 2: ACTIONS
+        // PANEL 2: ASSET RETRIEVAL
         js.append("    <div class='cp-panel'>");
-        js.append("      <div class='cp-panel-title'>/// PROTOCOL</div>");
-        js.append("      <div class='action-btn'>1. DOWNLOAD VIDEO</div>");
-        js.append("      <div class='action-btn'>2. COPY METADATA</div>");
-        js.append("      <div class='action-btn' style='background:#00f3ff; color:black;'>3. CONFIRM UPLOAD</div>");
+        js.append("      <div class='cp-panel-title'>/// ASSET RETRIEVAL</div>");
+        js.append("      <button class='action-btn' id='dl-btn'>1. DOWNLOAD VIDEO</button>");
+        js.append("      <button class='action-btn' style='border-style:dashed;'>2. COPY SOUND LINK</button>");
+        js.append("    </div>");
+
+        // PANEL 3: EXECUTION
+        js.append("    <div class='cp-panel'>");
+        js.append("      <div class='cp-panel-title'>/// EXECUTION</div>");
+        js.append("      <div style='color:#888; margin-bottom:5px; font-size:12px;'>METADATA</div>");
+        js.append("      <div class='data-val' style='width:100%; box-sizing:border-box; margin-bottom:15px;' id='cp-caption'>Scanning...</div>");
+        js.append("      <button class='action-btn' style='background:#00f3ff; color:black;'>3. CONFIRM UPLOAD</button>");
         js.append("    </div>");
         
-        // BACK BUTTON
-        js.append("    <div style='margin-top:auto;'><button class='action-btn' style='border-color:#ff0050; color:#ff0050;' onclick='history.back()'>ABORT MISSION</button></div>");
-
+        js.append("    <div style='height:50px;'></div>"); // Spacing for scrolling
+        js.append("    <button class='action-btn' style='border-color:#ff0050; color:#ff0050; position:fixed; bottom:0; left:0; margin:0;' onclick='history.back()'>ABORT MISSION (BACK)</button>");
+        
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
+        
+        // AUTO-FILL DATA (Simple Scraper)
+        js.append("  setTimeout(function() {");
+        // Try to find the username on the real page
+        js.append("    var userEl = document.querySelector('h1') || document.querySelector('.text-xl');");
+        js.append("    if(userEl) document.getElementById('cp-user').innerText = userEl.innerText;");
+        // Try to find caption
+        js.append("    var captionEl = document.querySelector('textarea') || document.querySelector('.caption-box');");
+        js.append("    if(captionEl) document.getElementById('cp-caption').innerText = captionEl.value || captionEl.innerText;");
+        js.append("  }, 1000);");
+
         js.append("})()");
         view.loadUrl(js.toString());
     }
 
-    // --- 5. SAVE LOGIN (LONG TERM MEMORY) ---
     @Override
     protected void onPause() {
         super.onPause();
         CookieManager.getInstance().flush();
     }
     
-    // --- 6. HANDLE BACK BUTTON ---
     @Override
     public void onBackPressed() {
         if(mWebView.canGoBack()) mWebView.goBack();
