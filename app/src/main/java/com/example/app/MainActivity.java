@@ -27,27 +27,27 @@ public class MainActivity extends Activity {
         webSettings.setDomStorageEnabled(true);
         webSettings.setDatabaseEnabled(true);
 
-        // 2. COOKIES (Essential for logging in)
+        // 2. COOKIES (Essential for staying logged in)
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(mWebView, true);
 
-        // 3. THE INJECTOR
+        // 3. THE INJECTOR (With "Bouncer Logic")
         mWebView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
-                // We inject the dashboard on ANY page inside the account manager
-                if (url.contains("tokportal.com")) {
+                // SAFETY CHECK: Only inject the Cyberpunk UI if we are 
+                // explicitly in the 'account-manager' section.
+                // This ensures the Login page loads normally if you are logged out.
+                if (url.contains("/account-manager/")) {
                     injectDashboardScript();
                 }
             }
         });
 
-        // 4. LOAD THE LIVE SITE (So we can scrape real data)
-        // Make sure this points to the page that has the calendar data!
+        // 4. LOAD THE LIVE SITE
         mWebView.loadUrl("https://app.tokportal.com/account-manager/calendar");
     }
 
-    // --- HELPER: Reads the JS file from Assets and runs it ---
     private void injectDashboardScript() {
         try {
             InputStream inputStream = getAssets().open("dashboard-injector.js");
