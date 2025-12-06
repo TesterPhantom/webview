@@ -7,6 +7,7 @@ import android.webkit.CookieManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 import java.io.InputStream;
 
 public class MainActivity extends Activity {
@@ -22,29 +23,33 @@ public class MainActivity extends Activity {
         mWebView = findViewById(R.id.activity_main_webview);
         WebSettings webSettings = mWebView.getSettings();
 
-        // 1. ENABLE FEATURES
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setDatabaseEnabled(true);
 
-        // 2. COOKIES (Essential for staying logged in)
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(mWebView, true);
 
-        // 3. THE INJECTOR (With "Bouncer Logic")
         mWebView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
-                // SAFETY CHECK: Only inject the Cyberpunk UI if we are 
-                // explicitly in the 'account-manager' section.
-                // This ensures the Login page loads normally if you are logged out.
-                if (url.contains("/account-manager/")) {
+                
+                // 1. AUTO-PILOT: If we land on 'Dashboard', redirect to 'Calendar'
+                // This fixes the issue of landing on a page that our script can't read.
+                if (url.contains("/dashboard")) {
+                    Toast.makeText(MainActivity.this, "Redirecting to Mission Control...", Toast.LENGTH_SHORT).show();
+                    view.loadUrl("https://app.tokportal.com/account-manager/calendar");
+                    return; // Stop here, wait for calendar to load
+                }
+
+                // 2. THE INJECTION: Only run when we finally hit the Calendar
+                if (url.contains("/calendar")) {
                     injectDashboardScript();
                 }
             }
         });
 
-        // 4. LOAD THE LIVE SITE
+        // Start by trying to go to calendar (Login might override this, but our Auto-Pilot will catch it)
         mWebView.loadUrl("https://app.tokportal.com/account-manager/calendar");
     }
 
@@ -56,8 +61,13 @@ public class MainActivity extends Activity {
             inputStream.close();
             String encoded = new String(buffer);
             mWebView.evaluateJavascript(encoded, null);
+            
+            // Confirm it worked
+            Toast.makeText(this, "Cyberpunk UI Online", Toast.LENGTH_SHORT).show();
+            
         } catch (Exception e) {
-            e.printStackTrace();
+            // If this pops up, the file is definitely missing/misnamed
+            Toast.makeText(this, "Error: dashboard-injector.js missing!", Toast.LENGTH_LONG).show();
         }
     }
     
