@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
 public class MainActivity extends Activity {
 
@@ -15,27 +16,28 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        
         mWebView = findViewById(R.id.activity_main_webview);
         WebSettings webSettings = mWebView.getSettings();
+        
+        // 1. Enable JavaScript (Required)
         webSettings.setJavaScriptEnabled(true);
-        // --- MEMORY & LOGIN FIX ---
-        // 1. Enable Storage (Crucial for modern apps)
+
+        // 2. ENABLE MEMORY (So you stay logged in)
         webSettings.setDomStorageEnabled(true);
         webSettings.setDatabaseEnabled(true);
-
-        // 2. Allow Cookies (This keeps you logged in)
+        
+        // 3. ENABLE COOKIES (Crucial for Login)
         android.webkit.CookieManager.getInstance().setAcceptCookie(true);
         android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(mWebView, true);
-        // --------------------------
-        mWebView.setWebViewClient(new android.webkit.WebViewClient());
 
+        // 4. Force links to open INSIDE the app
+        mWebView.setWebViewClient(new WebViewClient());
 
-
-        // REMOTE RESOURCE
-         mWebView.loadUrl("https://tokportal.com");
-
-        // LOCAL RESOURCE
-        // mWebView.loadUrl("file:///android_asset/index.html");
+        // 5. THE SWITCH: Load your Custom Menu instead of the website
+        // OLD: mWebView.loadUrl("https://tokportal.com");
+        // NEW:
+        mWebView.loadUrl("file:///android_asset/index.html");
     }
 
     @Override
