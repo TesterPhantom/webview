@@ -131,7 +131,6 @@ public class MainActivity extends Activity {
         js.append("        var userEl = row.querySelector('.text-gray-900.truncate');");
         js.append("        var username = userEl ? userEl.innerText : 'Unknown';");
         js.append("        var linkEl = row.querySelector('a'); var href = linkEl ? linkEl.href : '';");
-        
         js.append("        if(txt.indexOf('scheduled') !== -1) {");
         js.append("          count++; actionHTML += \"<div class='card' style='border-left:3px solid #00f3ff;'>\";");
         js.append("          actionHTML += \"<div class='card-row'><div style='font-weight:bold; color:white; font-size:14px;'>\" + username + \"</div><div style='font-size:10px; color:#00f3ff;'>READY</div></div>\";");
@@ -158,7 +157,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: MISSION COCKPIT (The "Smart Filter" Update)
+    // MODULE 2: MISSION COCKPIT (With "Bunker Buster")
     // =========================================================
     private void injectMissionCockpit(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -169,6 +168,7 @@ public class MainActivity extends Activity {
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap');");
+        // Hide EVERYTHING except our cockpit and the Modals
         js.append("    body > *:not(#cockpit-root):not([class*='modal']):not([role='dialog']) { display: none !important; }");
         js.append("    #cockpit-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:#00f3ff; z-index:99999; font-family:'Share Tech Mono', monospace; display:flex; flex-direction:column; padding:10px; overflow-y:auto; }");
         js.append("    .cp-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:15px; }");
@@ -179,7 +179,10 @@ public class MainActivity extends Activity {
         js.append("    .data-val { color:white; background:#111; padding:6px; border:1px solid #333; font-size:14px; flex:1; margin:0 10px; overflow:hidden; text-overflow:ellipsis; }");
         js.append("    .btn-copy { background:#00f3ff; color:black; border:none; padding:4px 8px; font-weight:bold; cursor:pointer; font-size:10px; border-radius:2px; }");
         js.append("    .action-btn { background:rgba(0,243,255,0.1); border:1px solid #00f3ff; color:#00f3ff; padding:15px; margin-bottom:10px; text-align:center; cursor:pointer; font-weight:bold; width:100%; display:block; }");
+        
+        // THEME VIRUS
         js.append("    div[role='dialog'], .modal, .popup { background-color: #13131f !important; color: white !important; border: 1px solid #00f3ff !important; }");
+        js.append("    h1, h2, h3, h4, strong { color: #00f3ff !important; }");
         js.append("    input, textarea, select { background: #050507 !important; color: white !important; border: 1px solid #333 !important; }");
         js.append("    #return-btn { position:fixed; bottom:20px; left:20px; z-index:999999; background:rgba(0,0,0,0.8); border:1px solid #00f3ff; color:#00f3ff; padding:10px; display:none; }");
         js.append("  `;");
@@ -190,7 +193,7 @@ public class MainActivity extends Activity {
         js.append("  root.id = 'cockpit-root';");
         js.append("  root.innerHTML = `");
         js.append("    <div class='cp-header'><div class='cp-title'>MISSION COCKPIT</div><div style='color:#00ff9d'>SECURE</div></div>");
-        js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// CREDENTIALS</div><div class='data-row'><span>USER</span><span class='data-val' id='cp-user'>Scanning...</span><button class='btn-copy' onclick='copyText(\"cp-user\")'>COPY</button></div><div class='data-row'><span>PASS</span><span class='data-val' id='cp-pass'>See Account Page</span></div></div>");
+        js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// CREDENTIALS</div><div class='data-row'><span>USER</span><span class='data-val' id='cp-user'>Scanning...</span><button class='btn-copy' onclick='copyText(\"cp-user\")'>COPY</button></div><div class='data-row'><span>PASS</span><span class='data-val' id='cp-pass'>********</span><button class='btn-copy' onclick='copyText(\"cp-pass\")'>COPY</button></div></div>");
         js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// ACTIONS</div><button class='action-btn' id='dl-btn' onclick='triggerRealUpload()'>1. INITIALIZE UPLOAD</button><div class='cp-panel-title' style='margin-top:10px;'>METADATA</div><div class='data-row'><span class='data-val' id='cp-caption' style='height:40px;'>Scanning...</span><button class='btn-copy' onclick='copyText(\"cp-caption\")'>COPY</button></div></div>");
         js.append("    <button class='action-btn' style='border-color:#ff0050; color:#ff0050; margin-top:auto;' onclick='history.back()'>ABORT MISSION</button>");
         js.append("  `;");
@@ -200,20 +203,31 @@ public class MainActivity extends Activity {
 
         js.append("  window.copyText = function(id) { Android.copyToClipboard(document.getElementById(id).innerText); };");
         
+        // --- TRIGGER & BUNKER BUSTER ---
         js.append("  window.triggerRealUpload = function() {");
+        // 1. Click Upload Button
         js.append("    var buttons = document.getElementsByTagName('button'); var found = false;");
         js.append("    for(var i=0; i<buttons.length; i++) { if(buttons[i].innerText.toLowerCase().includes('upload this video')) { buttons[i].click(); found = true; break; } }");
         js.append("    if(!found) { var links = document.getElementsByTagName('a'); for(var j=0; j<links.length; j++) { if(links[j].innerText.toLowerCase().includes('upload')) { links[j].click(); found=true; break; } } }");
-        js.append("    if(found) { document.getElementById('cockpit-root').style.display = 'none'; document.getElementById('return-btn').style.display = 'block'; }");
-        js.append("    else { alert('Target Not Found. Please scroll page.'); }");
+        
+        js.append("    if(found) {");
+        js.append("       // 2. Hide Cockpit");
+        js.append("       document.getElementById('cockpit-root').style.display = 'none';");
+        js.append("       document.getElementById('return-btn').style.display = 'block';");
+        js.append("       // 3. START BUNKER BUSTER (Auto-Click Warning)");
+        js.append("       setInterval(function() {");
+        js.append("          var btns = document.getElementsByTagName('button');");
+        js.append("          for(var k=0; k<btns.length; k++) {");
+        js.append("             if(btns[k].innerText.includes('Understand')) { btns[k].click(); }");
+        js.append("          }");
+        js.append("       }, 500);");
+        js.append("    } else { alert('Target Not Found. Please scroll down.'); }");
         js.append("  };");
 
-        // --- NEW: THE SMART FILTER SCRAPER ---
+        // --- INTELLIGENT SCRAPER ---
         js.append("  var attempts = 0;");
         js.append("  var scraper = setInterval(function() {");
         js.append("    attempts++;");
-        
-        // 1. FIND USER: Look for bold text, filtering out generic system words
         js.append("    var candidates = document.querySelectorAll('h1, h2, .text-xl, .font-bold, strong');");
         js.append("    for(var i=0; i<candidates.length; i++) {");
         js.append("       var txt = candidates[i].innerText.trim();");
@@ -221,17 +235,13 @@ public class MainActivity extends Activity {
         js.append("          document.getElementById('cp-user').innerText = txt; break;");
         js.append("       }");
         js.append("    }");
-
-        // 2. FIND CAPTION: Look for 'Description to use'
         js.append("    var allDivs = document.getElementsByTagName('div');");
         js.append("    for(var j=0; j<allDivs.length; j++) {");
         js.append("       if(allDivs[j].innerText.includes('Description to use:')) {");
-        // Look for the text box nearby
         js.append("          var sib = allDivs[j].nextElementSibling || allDivs[j].querySelector('p, div, span');");
         js.append("          if(sib && sib.innerText.length > 2) { document.getElementById('cp-caption').innerText = sib.innerText; break; }");
         js.append("       }");
         js.append("    }");
-        
         js.append("    if(attempts > 5) clearInterval(scraper);");
         js.append("  }, 1000);");
 
