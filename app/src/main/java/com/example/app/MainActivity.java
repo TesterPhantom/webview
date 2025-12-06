@@ -54,25 +54,21 @@ public class MainActivity extends Activity {
 
     // --- CENTRAL ROUTER LOGIC ---
     private void handleUrl(WebView view, String url) {
-        // PRIORITY 1: MISSION COCKPIT (Specific Video Selected)
         if (url.contains("#video=")) {
             injectMissionCockpit(view);
             return;
         }
         
-        // PRIORITY 2: VIDEO SELECTOR SCREEN (On Order Details Page)
         if (url.contains("order") || url.contains("details") || url.contains("job")) {
             injectVideoSelector(view);
             return;
         }
 
-        // PRIORITY 3: COMMAND DECK (Calendar)
         if (url.contains("/calendar")) {
             injectDashboardUI(view);
             return;
         }
 
-        // PRIORITY 4: AUTO-PILOT
         if (url.contains("account-manager") && !url.contains("login")) {
             view.loadUrl("https://app.tokportal.com/account-manager/calendar");
         }
@@ -179,7 +175,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: VIDEO SELECTOR SCREEN (Gold Standard Selector)
+    // MODULE 2: VIDEO SELECTOR SCREEN (Adaptive Poller)
     // =========================================================
     private void injectVideoSelector(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -188,6 +184,7 @@ public class MainActivity extends Activity {
         
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
+        js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
         js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); 
         js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; padding:15px; overflow-y:auto; }");
@@ -206,36 +203,49 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
-        // --- SCRAPER LOGIC: Uses Confirmed HTML Structure ---
-        js.append("  var currentUrl = window.location.href.split('#')[0];");
+        // --- ADAPTIVE POLLER LOGIC ---
         js.append("  var listContainer = document.getElementById('video-list');");
-        
-        // **GOLD STANDARD SELECTOR:** Finds the card container based on confirmed classes.
-        js.append("  var videoCards = document.querySelectorAll('div[class*=\"rounded-lg shadow-sm border-gray-200\"]');"); 
-        
-        js.append("  var html = '';");
-        js.append("  var videoCount = 0;");
+        js.append("  var currentUrl = window.location.href.split('#')[0];");
         js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
+        js.append("  var attempts = 0;");
+        js.append("  var maxAttempts = 10;"); // Poll for up to 10 seconds (10 * 1000ms)
+        js.append("  var poller = setInterval(function() {");
+        js.append("    attempts++;");
         
-        js.append("  videoCards.forEach(function(card, index) {");
+        // **GOLD STANDARD SELECTOR:** Finds the card container based on confirmed class.
+        js.append("    var videoCards = document.querySelectorAll('div[class*=\"rounded-lg shadow-sm border-gray-200\"]');"); 
         
+        js.append("    if (videoCards.length > 0) {");
+        js.append("      clearInterval(poller);");
+        
+        js.append("      var html = '';");
+        js.append("      var videoCount = 0;");
+        
+        js.append("      videoCards.forEach(function(card, index) {");
         // 1. Find Title (h3 tag)
-        js.append("    var titleEl = card.querySelector('h3');");
+        js.append("        var titleEl = card.querySelector('h3');");
         
         // 2. Determine Status (based on text content of the card)
-        js.append("    var status = card.innerText.includes('Accepted') ? 'READY' : 'SCHEDULED';");
+        js.append("        var status = card.innerText.includes('Accepted') ? 'READY' : 'SCHEDULED';");
         
-        js.append("    if (titleEl && titleEl.innerText.length > 5) {"); 
-        js.append("      videoCount++;");
-        js.append("      var cleanTitle = titleEl.innerText.trim();");
+        // 3. Filter for TO UPLOAD videos (must contain 'Accepted' or 'To Upload' type status)
+        js.append("        if (titleEl && titleEl.innerText.length > 5 && card.innerText.includes('Accepted')) {"); 
+        js.append("          videoCount++;");
+        js.append("          var cleanTitle = titleEl.innerText.trim();");
         // Pass the index (which video card to click later) and username
-        js.append("      var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
-        js.append("      html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + '<span class=\"sel-status\">' + status + '</span></button>';");
-        js.append("    }");
-        js.append("  });");
+        js.append("          var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
+        js.append("          html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + '<span class=\"sel-status\">' + status + '</span></button>';");
+        js.append("        }");
+        js.append("      });");
 
-        js.append("  if(videoCount > 0) { listContainer.innerHTML = html; }");
-        js.append("  else { listContainer.innerHTML = '<p style=\"color:#f00;\">No video cards detected. Try refreshing.</p>'; }");
+        js.append("      if(videoCount > 0) { listContainer.innerHTML = html; }");
+        js.append("      else { listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check "Videos In Review" section.</p>'; }");
+
+        js.append("    } else if (attempts >= maxAttempts) {");
+        js.append("      clearInterval(poller);");
+        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">Timeout: Videos failed to load dynamically after 10s.</p>';");
+        js.append("    }");
+        js.append("  }, 1000);"); // Check every 1 second
 
         js.append("})()");
         view.loadUrl(js.toString());
@@ -252,7 +262,7 @@ public class MainActivity extends Activity {
         // CSS
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
-        js.append("    @import url('https://fonts.googleapis.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
+        js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap');");
         js.append("    body > *:not(#cockpit-root) { display: none !important; }"); 
         js.append("    #cockpit-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:#00f3ff; z-index:99999; font-family:'Share Tech Mono', monospace; display:flex; flex-direction:column; padding:10px; overflow-y:auto; }");
@@ -340,7 +350,6 @@ public class MainActivity extends Activity {
         js.append("    var possibleCaptions = document.querySelectorAll('p, div, span, strong');"); 
         js.append("    for(var i=0; i<possibleCaptions.length; i++) {");
         js.append("        var txt = possibleCaptions[i].innerText.trim();");
-        // Look for long text (>50 chars) that contains hashtags (#) but isn't the target period
         js.append("        if(txt.length > 50 && txt.includes('#') && !txt.includes('Target period')) {");
         js.append("           document.getElementById('cp-caption').innerText = txt; captionFound = true; break;");
         js.append("        }");
