@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
         
         js.append("  if(document.getElementById('cyber-root')) return;");
 
-        // 1. DATA SCRAPING (Now captures names!)
+        // 1. DATA SCRAPING
         js.append("  var count = 0;");
         js.append("  var calendarHTML = '';"); // Variable to hold the list of cards
         
@@ -73,17 +73,19 @@ public class MainActivity extends Activity {
         // If we find a scheduled post:
         js.append("      if(txt.indexOf('scheduled') !== -1) {");
         js.append("        count++;");
-        // Grab the username from the row
         js.append("        var userEl = row.querySelector('.text-gray-900.truncate');");
         js.append("        var username = userEl ? userEl.innerText : 'Unknown Account';");
-        // Add a card to our HTML list
-        js.append("        calendarHTML += `<div class='card' style='border-left:3px solid #00f3ff; margin-bottom:10px;'>");
-        js.append("             <div style='font-weight:bold; color:white; font-size:16px;'>` + username + `</div>");
-        js.append("             <div style='font-size:12px; color:#888; margin-top:4px;'>STATUS: READY FOR UPLOAD</div>");
-        js.append("             <button class='btn' onclick='alert(\"Uploading to \" + \"" + username + "\")'>UPLOAD NOW</button>");
-        js.append("        </div>`;");
-        js.append("      }");
         
+        // --- FIX START ---
+        // We use escaped quotes (\") to keep the Javascript string valid inside the Java string
+        js.append("        calendarHTML += \"<div class='card' style='border-left:3px solid #00f3ff; margin-bottom:10px;'>\";");
+        js.append("        calendarHTML += \"<div style='font-weight:bold; color:white; font-size:16px;'>\" + username + \"</div>\";");
+        js.append("        calendarHTML += \"<div style='font-size:12px; color:#888; margin-top:4px;'>STATUS: READY FOR UPLOAD</div>\";");
+        js.append("        calendarHTML += \"<button class='btn' onclick='alert(\\\"Uploading to \\\" + username)'>UPLOAD NOW</button>\";");
+        js.append("        calendarHTML += \"</div>\";");
+        // --- FIX END ---
+        
+        js.append("      }");
         js.append("    }");
         js.append("  }");
 
