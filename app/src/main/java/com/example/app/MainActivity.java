@@ -31,30 +31,34 @@ public class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(mWebView, true);
 
-        // 3. THE NAVIGATOR (With Debugging)
+        // 3. THE NAVIGATOR
         mWebView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
                 
-                // DEBUG: Tell us the URL!
-                // Toast.makeText(MainActivity.this, "Location: " + url, Toast.LENGTH_SHORT).show();
+                // DEBUG: THIS WILL TELL US THE EXACT URL IF IT STICKS
+                Toast.makeText(MainActivity.this, "Loc: " + url, Toast.LENGTH_LONG).show();
 
-                // A. REDIRECT: Dashboard -> Calendar
-                if (url.contains("/dashboard") && !url.contains("calendar")) {
-                    Toast.makeText(MainActivity.this, "Redirecting...", Toast.LENGTH_SHORT).show();
-                    view.loadUrl("https://app.tokportal.com/account-manager/calendar");
+                // 1. COCKPIT MODE (Priority 1)
+                // We check this first so we don't redirect away from an active mission
+                if (url.contains("order") || url.contains("details") || url.contains("job")) {
+                    Toast.makeText(MainActivity.this, "Mission Cockpit Engaged", Toast.LENGTH_SHORT).show();
+                    injectMissionCockpit(view);
                     return;
                 }
 
-                // B. DASHBOARD MODE (Calendar)
+                // 2. DASHBOARD MODE (Priority 2)
                 if (url.contains("/calendar")) {
                     injectDashboardUI(view);
-                } 
-                // C. COCKPIT MODE (Catch-all for orders)
-                // We broadened the check to include 'orders', 'details', 'job'
-                else if (url.contains("order") || url.contains("details") || url.contains("job")) {
-                    Toast.makeText(MainActivity.this, "Cockpit Mode Engaged", Toast.LENGTH_SHORT).show();
-                    injectMissionCockpit(view);
+                    return;
+                }
+
+                // 3. CATCH-ALL REDIRECT (Priority 3)
+                // If we are in the Account Manager but NOT on the calendar or an order...
+                // ...REDIRECT TO CALENDAR.
+                if (url.contains("account-manager") && !url.contains("login")) {
+                    Toast.makeText(MainActivity.this, "Aligning Satellite...", Toast.LENGTH_SHORT).show();
+                    view.loadUrl("https://app.tokportal.com/account-manager/calendar");
                 }
             }
         });
@@ -63,13 +67,12 @@ public class MainActivity extends Activity {
         mWebView.loadUrl("https://app.tokportal.com/account-manager/calendar");
     }
 
-    // --- MODE 1: DASHBOARD ---
+    // --- MODE 1: DASHBOARD (Calendar) ---
     private void injectDashboardUI(WebView view) {
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
         js.append("  if(document.getElementById('cyber-root')) return;");
         
-        // CSS
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
@@ -83,7 +86,6 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
-        // HTML
         js.append("  var root = document.createElement('div');");
         js.append("  root.id = 'cyber-root';");
         js.append("  root.innerHTML = `");
@@ -92,7 +94,6 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
-        // LOGIC
         js.append("  window.scanData = function() {");
         js.append("    var rows = document.querySelectorAll('.grid.grid-cols-8.border-b');");
         js.append("    var html = '';");
@@ -103,15 +104,15 @@ public class MainActivity extends Activity {
         js.append("        var txt = row.children[col] ? row.children[col].innerText.toLowerCase() : '';");
         js.append("        if(txt.indexOf('scheduled') !== -1) {");
         js.append("          var userEl = row.querySelector('.text-gray-900.truncate');");
-        // DEBUG: FIND LINK
+        // GRAB LINK
         js.append("          var linkEl = row.querySelector('a');"); 
-        js.append("          var url = linkEl ? linkEl.href : '#ERROR_NO_LINK';");
+        js.append("          var url = linkEl ? linkEl.href : '#';");
         js.append("          var username = userEl ? userEl.innerText : 'Unknown';");
         js.append("          html += \"<div class='card' style='border-left:3px solid #00f3ff;'>\";");
         js.append("          html += \"<div style='font-weight:bold;'>\" + username + \"</div>\";");
         js.append("          html += \"<div style='font-size:12px; color:#888;'>STATUS: READY</div>\";");
-        // DEBUG: ALERT ON CLICK
-        js.append("          html += \"<button class='btn' onclick='alert(\\\"Targeting: \\\" + \\\"\" + url + \"\\\"); location.href=\\\"\" + url + \"\\\"'>OPEN COCKPIT</button>\";");
+        // CLICKING BUTTON NAVIGATES TO URL
+        js.append("          html += \"<button class='btn' onclick='location.href=\\\"\" + url + \"\\\"'>OPEN COCKPIT</button>\";");
         js.append("          html += \"</div>\";");
         js.append("        }");
         js.append("      }");
@@ -153,7 +154,6 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
-        // AUTO-FILL
         js.append("  setTimeout(function() {");
         js.append("    var userEl = document.querySelector('h1') || document.querySelector('.text-xl');");
         js.append("    if(userEl) document.getElementById('cp-user').innerText = userEl.innerText;");
