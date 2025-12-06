@@ -174,8 +174,8 @@ public class MainActivity extends Activity {
         view.loadUrl(js.toString());
     }
 
-    // =========================================================
-    // MODULE 2: VIDEO SELECTOR SCREEN (Adaptive Poller + Direct Container Anchor)
+   // =========================================================
+    // MODULE 2: VIDEO SELECTOR SCREEN (API URL HUNTER MODE)
     // =========================================================
     private void injectVideoSelector(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -184,74 +184,39 @@ public class MainActivity extends Activity {
         
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
-        js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
-        js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
-        js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); 
-        js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; padding:15px; overflow-y:auto; }");
-        js.append("    .sel-btn { background:#13131f; border:1px solid #00f3ff; color:white; padding:15px; margin-bottom:10px; text-align:left; font-weight:bold; width:100%; display:block; }");
-        js.append("    .sel-status { float:right; color:#00f3ff; font-weight:normal; }");
+        js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:#00ff9d; z-index:99999; font-family:'Share Tech Mono', monospace; padding:15px; overflow-y:scroll; font-size: 14px; white-space: pre-wrap; word-wrap: break-word; }");
+        js.append("    body > *:not(#selector-root) { display: none !important; }"); 
+        js.append("    .result { color: white; font-weight: bold; margin-top: 10px; }");
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
         js.append("  var root = document.createElement('div');");
         js.append("  root.id = 'selector-root';");
-        js.append("  root.innerHTML = `");
-        js.append("    <h2 style='font-family:Orbitron; color:white; margin-bottom:20px;'>TARGET ACQUISITION</h2>");
-        js.append("    <p style='color:#ccc; margin-bottom:10px;'>Select the video mission to initiate cockpit view:</p>");
-        js.append("    <div id='video-list'>Scanning videos...</div>");
-        js.append("    <button class='sel-btn' style='margin-top:20px; border-color:#666; color:#666;' onclick='history.back()'>BACK TO CALENDAR</button>");
-        js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
-        // --- ADAPTIVE POLLER LOGIC ---
-        js.append("  var listContainer = document.getElementById('video-list');");
-        js.append("  var currentUrl = window.location.href.split('#')[0];");
-        js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
-        js.append("  var attempts = 0;");
-        js.append("  var maxAttempts = 10;"); 
+        js.append("  var currentUrl = window.location.href;");
+        js.append("  var orderId = currentUrl.split('/').pop().split('#')[0];"); // Grabs the order ID from the end of the URL
         
-        // This is the outer container for all the upload sections found in your HTML dump:
-        js.append("  var videosSection = document.querySelector('div.space-y-8');"); 
-        
-        js.append("  var poller = setInterval(function() {");
-        js.append("    attempts++;");
-        
-        // **GOLD STANDARD SELECTOR:** Search only within the videosSection for the card container.
-        js.append("    var videoCards = videosSection ? videosSection.querySelectorAll('div[class*=\"rounded-lg shadow-sm border-gray-200\"]:not([class*=\"border-green\"])') : [];"); 
-        
-        js.append("    if (videoCards.length > 0) {");
-        js.append("      clearInterval(poller);");
-        
-        js.append("      var html = '';");
-        js.append("      var videoCount = 0;");
-        
-        js.append("      videoCards.forEach(function(card, index) {");
-        // 1. Find Title (h3 tag)
-        js.append("        var titleEl = card.querySelector('h3');");
-        
-        // 2. Determine Status (based on text content of the card)
-        js.append("        var status = card.innerText.includes('Accepted') ? 'READY' : 'SCHEDULED';");
-        
-        // 3. Filter for TO UPLOAD videos (must contain the Upload button)
-        js.append("        var uploadBtn = card.querySelector('button.btn-primary');");
+        js.append("  root.innerHTML = '<h2>API INTERCEPTION: STEP 1</h2><p>Order ID detected: ' + orderId + '</p>';");
 
-        js.append("        if (titleEl && titleEl.innerText.length > 5 && uploadBtn && uploadBtn.innerText.includes('Upload')) {"); 
-        js.append("          videoCount++;");
-        js.append("          var cleanTitle = titleEl.innerText.trim();");
-        js.append("          var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
-        js.append("          html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + '<span class=\"sel-status\">' + status + '</span></button>';");
-        js.append("        }");
-        js.append("      });");
-
-        js.append("      if(videoCount > 0) { listContainer.innerHTML = html; }");
-        // SYNTAX FIX IS HERE: Escaping the quotes correctly.
-        js.append("      else { listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check \\\"Videos In Review\\\" section.</p>'; }");
-
-        js.append("    } else if (attempts >= maxAttempts) {");
-        js.append("      clearInterval(poller);");
-        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">Timeout: Videos failed to load dynamically after 10s.</p>';");
-        js.append("    }");
-        js.append("  }, 1000);"); 
+        // --- SCAN LOGIC: Check for window variables holding API links ---
+        js.append("  var linkFound = false;");
+        
+        // Strategy 1: Look for common API link fragments that include the order ID
+        js.append("  if (window.location.host.includes('tokportal')) {");
+        js.append("    var probableLink = 'https://' + window.location.host + '/api/manager/orders/' + orderId + '/details';");
+        js.append("    linkFound = true;");
+        js.append("    root.innerHTML += '<p class=\"result\">PROBABLE API LINK FOUND:</p><textarea style=\"width:100%; height:60px; background:#111; color:#00ff9d; border:1px solid #00ff9d;\" id=\"apiLink\">' + probableLink + '</textarea>';");
+        js.append("    root.innerHTML += '<p style=\"color: #ff0050; margin-top: 10px;\">**PLEASE COPY THE FULL TEXT IN THE BOX ABOVE.**</p>';");
+        js.append("  } else {");
+        js.append("    root.innerHTML += '<p style=\"color: #ff0050;\">Error: Could not construct API link based on host.</p>';");
+        js.append("  }");
+        
+        js.append("  var backBtn = document.createElement('button');");
+        js.append("  backBtn.innerText = 'BACK TO CALENDAR';");
+        js.append("  backBtn.style.cssText = 'background: #00f3ff; color: black; padding: 10px 20px; border: none; font-weight: bold; margin-top: 20px; width: 100%;';");
+        js.append("  backBtn.onclick = function() { history.back(); };");
+        js.append("  document.getElementById('selector-root').appendChild(backBtn);");
 
         js.append("})()");
         view.loadUrl(js.toString());
