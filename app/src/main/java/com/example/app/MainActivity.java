@@ -70,10 +70,11 @@ public class MainActivity extends Activity {
             // Extract Order ID and pass it to the API-Driven Module
             String orderId = getOrderIdFromUrl(url);
             if (orderId != null) {
-                injectApiSelector(view, orderId);
+                // CORRECTED CALL: Use the stable API fetch method
+                injectApiSelector(view, orderId); 
             } else {
-                // Fallback to basic visual injection if order ID is missing (shouldn't happen)
-                injectVideoSelector(view); 
+                // Fallback (though this path should now be obsolete)
+                injectVideoSelectorFallback(view); 
             }
             return;
         }
@@ -100,7 +101,6 @@ public class MainActivity extends Activity {
                 
                 String orderId = potentialId.substring(0, end);
                 
-                // Basic validation for GUID format
                 if (orderId.length() >= 20 && orderId.contains("-")) {
                     return orderId;
                 }
@@ -212,8 +212,39 @@ public class MainActivity extends Activity {
         view.loadUrl(js.toString());
     }
 
+    // --- MODULE 2: FALLBACK VIDEO SELECTOR (FOR REFERENCE ONLY) ---
+    // This function is kept for completeness as a historical fallback.
+    private void injectVideoSelectorFallback(WebView view) {
+        StringBuilder js = new StringBuilder();
+        js.append("javascript:(function() {");
+        js.append("  if(document.getElementById('selector-root')) return;");
+        
+        js.append("  var style = document.createElement('style');");
+        js.append("  style.innerHTML = `");
+        js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
+        js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
+        js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); 
+        js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; padding:15px; overflow-y:auto; }");
+        js.append("    .sel-btn { background:#13131f; border:1px solid #00f3ff; color:white; padding:15px; margin-bottom:10px; text-align:left; font-weight:bold; width:100%; display:block; }");
+        js.append("    .sel-status { float:right; color:#00f3ff; font-weight:normal; }");
+        js.append("  `;");
+        js.append("  document.head.appendChild(style);");
+
+        js.append("  var root = document.createElement('div');");
+        js.append("  root.id = 'selector-root';");
+        js.append("  root.innerHTML = `");
+        js.append("    <h2 style='font-family:Orbitron; color:white; margin-bottom:20px;'>TARGET ACQUISITION (FALLBACK)</h2>");
+        js.append("    <p style='color:#ccc; margin-bottom:10px;'>Selector Failed. Returning to fallback...</p>");
+        js.append("    <div id='video-list'>Failed to load data.</div>");
+        js.append("    <button class='sel-btn' style='margin-top:20px; border-color:#666; color:#666;' onclick='history.back()'>BACK TO CALENDAR</button>");
+        js.append("  `;");
+        js.append("  document.body.appendChild(root);");
+        js.append("})()");
+        view.loadUrl(js.toString());
+    }
+
     // =========================================================
-    // MODULE 2: API-DRIVEN VIDEO SELECTOR
+    // MODULE 2: API-DRIVEN VIDEO SELECTOR (FINAL FIX)
     // =========================================================
     private void injectApiSelector(WebView view, String orderId) {
         StringBuilder js = new StringBuilder();
@@ -268,7 +299,6 @@ public class MainActivity extends Activity {
         // Only show videos ready for upload
         js.append("      if (video.status === 'accepted') {");
         js.append("        videoCount++;");
-        js.append("        // The video index is now guaranteed to be correct based on the API list");
         js.append("        var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
         js.append("        html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + ' (' + status + ')' + '</button>';");
         js.append("      }");
@@ -278,7 +308,7 @@ public class MainActivity extends Activity {
         js.append("      listContainer.innerHTML = html;");
         js.append("      statusMsg.innerText = 'Select Video Mission:';");
         js.append("    } else {");
-        // Syntax fix applied here: using escaped quotes inside the string
+        // Correctly escaped syntax for the error message
         js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check \\\"Videos In Review\\\" status.</p>';");
         js.append("      statusMsg.innerText = 'API Fetch Complete - No Ready Videos.';");
         js.append("    }");
@@ -307,9 +337,6 @@ public class MainActivity extends Activity {
 
     // =========================================================
     // MODULE 3: MISSION COCKPIT (Final Aggregation Screen)
-    // =========================================================
-    // Note: This module is still primarily based on client-side interactions (like button clicks)
-    // and remains mostly untouched from previous working version.
     // =========================================================
     private void injectMissionCockpit(WebView view) {
         StringBuilder js = new StringBuilder();
