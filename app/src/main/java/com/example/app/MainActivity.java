@@ -175,7 +175,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: VIDEO SELECTOR SCREEN (Final Class Anchor Scraper)
+    // MODULE 2: VIDEO SELECTOR SCREEN (Account-Agnostic Scraper)
     // =========================================================
     private void injectVideoSelector(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -216,19 +216,20 @@ public class MainActivity extends Activity {
         js.append("  uploadButtons.forEach(function(btn, index) {");
         
         // **HYPER-TRAVERSAL:** Find the Title by climbing up to a stable container
-        js.append("    var card = btn;"); // Start traversal from the button element
+        js.append("    var card = btn;"); 
         js.append("    var titleEl = null;");
         js.append("    var climbCount = 0;");
         js.append("    while(card && climbCount < 10) {");
-        js.append("        titleEl = card.querySelector('h3, h4, strong');"); // Search descendants for title
-        js.append("        if (titleEl && titleEl.innerText.includes('Glippy')) break;"); // Success if we find the title
+        // Look for the title inside the parent. Title is likely h3/h4/strong and NOT too short/generic.
+        js.append("        titleEl = card.querySelector('h3, h4, strong');"); 
+        // Check if the title element exists and its text is long enough to be a title (>15 chars)
+        js.append("        if (titleEl && titleEl.innerText.length > 15 && !titleEl.innerText.includes('Target period')) break;"); 
         js.append("        card = card.parentElement;"); // Climb higher
         js.append("        climbCount++;");
         js.append("    }");
         
         js.append("    if (titleEl) {");
         js.append("      videoCount++;");
-        // Status check should be on the final card container
         js.append("      var status = card.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
         js.append("      var cleanTitle = titleEl.innerText.trim();");
         // Pass the index (which video card to click later) and username
@@ -255,6 +256,7 @@ public class MainActivity extends Activity {
         // CSS
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
+        js.append("    @import url('https://fonts.googleapis.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap');");
         js.append("    body > *:not(#cockpit-root) { display: none !important; }"); 
         js.append("    #cockpit-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:#00f3ff; z-index:99999; font-family:'Share Tech Mono', monospace; display:flex; flex-direction:column; padding:10px; overflow-y:auto; }");
@@ -310,7 +312,6 @@ public class MainActivity extends Activity {
         js.append("  window.triggerRealUpload = function() {");
         js.append("    var buttons = document.getElementsByTagName('button'); var found = false;");
         
-        // Find the Nth "Upload this video" button corresponding to the index in the URL hash
         js.append("    var videoIndex = parseInt(new URLSearchParams(window.location.hash.slice(1)).get('video')) || 0;");
         js.append("    var uploadBtns = [];");
         js.append("    for(var i=0; i<buttons.length; i++) { if(buttons[i].innerText.toLowerCase().includes('upload this video')) { uploadBtns.push(buttons[i]); } }");
@@ -333,16 +334,19 @@ public class MainActivity extends Activity {
         // --- DATA HARVEST (Baton Pass + Targeted Caption Scrape) ---
         js.append("  setTimeout(function() {");
         
+        // 1. GET USER FROM URL HASH
         js.append("    if(window.location.hash.includes('user=')) {");
         js.append("       var user = decodeURIComponent(window.location.hash.split('user=')[1].split('&')[0]);");
         js.append("       document.getElementById('cp-user').innerText = user;");
         js.append("    }");
         
+        // 2. SCRAPE CAPTION (Look for long text/hashtags, not 'support')
         js.append("    var captionFound = false;");
         js.append("    var possibleCaptions = document.querySelectorAll('p, div, span, strong');"); 
         js.append("    for(var i=0; i<possibleCaptions.length; i++) {");
         js.append("        var txt = possibleCaptions[i].innerText.trim();");
-        js.append("        if(txt.length > 50 && (txt.includes('#') || txt.includes('support')) && !txt.includes('Target period')) {");
+        // Look for long text (>50 chars) that contains hashtags (#) but isn't the target period
+        js.append("        if(txt.length > 50 && txt.includes('#') && !txt.includes('Target period')) {");
         js.append("           document.getElementById('cp-caption').innerText = txt; captionFound = true; break;");
         js.append("        }");
         js.append("    }");
