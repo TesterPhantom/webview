@@ -42,7 +42,6 @@ public class MainActivity extends Activity {
         });
 
         // 4. LOAD THE LIVE SITE
-        // It will redirect to Login first if needed, then to Calendar
         mWebView.loadUrl("https://app.tokportal.com/account-manager/calendar");
     }
 
@@ -137,25 +136,25 @@ public class MainActivity extends Activity {
                 "`<div class='header'>" +
                 "   <span class='h-title'>TODAY'S OPS</span>" +
                 "   <span class='date-badge'>` + today.toLocaleDateString() + `</span>" +
-                " </div>` +
+                " </div>` + " + // Fixed Missing Quote Here!
 
                 // Section 1: ACTION (Starts Open)
-                "`<div onclick='toggle(this)' class='section-btn btn-action active'>` +" +
-                "   `<span>⚡ ACTION REQUIRED</span> <span class='count-badge'>` + actionCount + `</span></div>` +" +
-                "`<div class='section-content show'>` + actionHTML + `</div>` +" +
+                "`<div onclick='toggle(this)' class='section-btn btn-action active'>` + " +
+                "   `<span>⚡ ACTION REQUIRED</span> <span class='count-badge'>` + actionCount + `</span></div>` + " +
+                "`<div class='section-content show'>` + actionHTML + `</div>` + " +
 
                 // Section 2: WARMING (Starts Closed)
-                "`<div onclick='toggle(this)' class='section-btn btn-warming'>` +" +
-                "   `<span>🔥 WARMING / NICHE</span> <span class='count-badge'>` + warmCount + `</span></div>` +" +
-                "`<div class='section-content'>` + warmHTML + `</div>` +" +
+                "`<div onclick='toggle(this)' class='section-btn btn-warming'>` + " +
+                "   `<span>🔥 WARMING / NICHE</span> <span class='count-badge'>` + warmCount + `</span></div>` + " +
+                "`<div class='section-content'>` + warmHTML + `</div>` + " +
 
                 // Section 3: NO ACTION (Starts Closed)
-                "`<div onclick='toggle(this)' class='section-btn btn-done'>` +" +
-                "   `<span>💤 NO ACTION</span> <span class='count-badge'>` + doneCount + `</span></div>` +" +
-                "`<div class='section-content'>` + doneHTML + `</div>` +" +
+                "`<div onclick='toggle(this)' class='section-btn btn-done'>` + " +
+                "   `<span>💤 NO ACTION</span> <span class='count-badge'>` + doneCount + `</span></div>` + " +
+                "`<div class='section-content'>` + doneHTML + `</div>` + " +
                 
                 // Refresh Button
-                "`<button class='refresh-btn' onclick='location.reload()'>↻</button>` +" +
+                "`<button class='refresh-btn' onclick='location.reload()'>↻</button>` + " +
                 
                 // Toggle Logic Script
                 "`<script>function toggle(btn) { " +
