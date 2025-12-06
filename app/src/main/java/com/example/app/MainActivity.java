@@ -6,6 +6,8 @@ import android.os.Bundle;
 import android.webkit.CookieManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import java.io.InputStream;
 
 public class MainActivity extends Activity {
 
@@ -25,29 +27,49 @@ public class MainActivity extends Activity {
         webSettings.setDomStorageEnabled(true);
         webSettings.setDatabaseEnabled(true);
 
-        // 2. LONG TERM MEMORY (Keeps cookies safe)
+        // 2. COOKIES (Essential for logging in)
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(mWebView, true);
 
-        // 3. LOAD THE PROTOTYPE
-        // This is the ONLY load command we want right now.
-        mWebView.loadUrl("file:///android_asset/dashboard-shell.html");
+        // 3. THE INJECTOR
+        mWebView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                // We inject the dashboard on ANY page inside the account manager
+                if (url.contains("tokportal.com")) {
+                    injectDashboardScript();
+                }
+            }
+        });
+
+        // 4. LOAD THE LIVE SITE (So we can scrape real data)
+        // Make sure this points to the page that has the calendar data!
+        mWebView.loadUrl("https://app.tokportal.com/account-manager/calendar");
     }
 
-    // 4. SAVE LOGIN ON EXIT
+    // --- HELPER: Reads the JS file from Assets and runs it ---
+    private void injectDashboardScript() {
+        try {
+            InputStream inputStream = getAssets().open("dashboard-injector.js");
+            byte[] buffer = new byte[inputStream.available()];
+            inputStream.read(buffer);
+            inputStream.close();
+            String encoded = new String(buffer);
+            mWebView.evaluateJavascript(encoded, null);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
     @Override
     protected void onPause() {
         super.onPause();
         CookieManager.getInstance().flush();
     }
-
-    // 5. HANDLE BACK BUTTON
+    
     @Override
     public void onBackPressed() {
-        if(mWebView.canGoBack()) {
-            mWebView.goBack();
-        } else {
-            super.onBackPressed();
-        }
+        if(mWebView.canGoBack()) mWebView.goBack();
+        else super.onBackPressed();
     }
 }
