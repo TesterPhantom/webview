@@ -36,23 +36,20 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 
-                // PRIORITY 1: MISSION COCKPIT
-                // If we are on an order details page, load the Cockpit UI
+                // PRIORITY 1: MISSION COCKPIT (Order Details)
                 if (url.contains("order") || url.contains("details") || url.contains("job")) {
                     injectMissionCockpit(view);
                     return;
                 }
 
-                // PRIORITY 2: DASHBOARD
-                // If we are on the calendar, load the Command Deck UI
+                // PRIORITY 2: COMMAND DECK (Calendar)
                 if (url.contains("/calendar")) {
                     injectDashboardUI(view);
                     return;
                 }
 
                 // PRIORITY 3: AUTO-PILOT REDIRECT
-                // If we are logged in (Account Manager) but on the wrong page (like the yellow warning page),
-                // redirect to the Calendar immediately.
+                // If we are stuck on the "Yellow Warning" page or main dashboard, go to Calendar.
                 if (url.contains("account-manager") && !url.contains("login")) {
                     Toast.makeText(MainActivity.this, "Aligning Satellite...", Toast.LENGTH_SHORT).show();
                     view.loadUrl("https://app.tokportal.com/account-manager/calendar");
@@ -81,11 +78,8 @@ public class MainActivity extends Activity {
         js.append("    #cyber-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; display:flex; flex-direction:column; }");
         js.append("    .top-bar { padding:15px; background:rgba(19,19,31,0.95); border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center; }");
         js.append("    .content-area { flex:1; overflow-y:auto; padding:15px; }");
-        
-        // UI Components
         js.append("    .card { background:#13131f; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; margin-bottom:8px; }");
         js.append("    .btn { background:transparent; border:1px solid #00f3ff; color:#00f3ff; padding:8px; border-radius:4px; font-weight:bold; width:100%; margin-top:5px; }");
-        js.append("    .category-header { padding:12px; background:#1a1a2e; margin-top:10px; border-radius:6px; font-family:'Orbitron'; font-size:14px; color:#00f3ff; border:1px solid rgba(255,255,255,0.1); }");
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
@@ -98,38 +92,32 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
-        // LOGIC: Scrape the Calendar and build the UI
+        // LOGIC
         js.append("  window.scanData = function() {");
         js.append("    var rows = document.querySelectorAll('.grid.grid-cols-8.border-b');");
-        js.append("    var html = ''; var count = 0;");
+        js.append("    var html = '';");
         js.append("    if(rows.length > 0) {");
         js.append("      var day = new Date().getDay(); var col = (day===0)?7:day;");
         js.append("      for(var i=0; i<rows.length; i++) {");
         js.append("        var row = rows[i];");
         js.append("        var txt = row.children[col] ? row.children[col].innerText.toLowerCase() : '';");
-        
-        // FIND SCHEDULED ITEMS
         js.append("        if(txt.indexOf('scheduled') !== -1) {");
-        js.append("          count++;");
         js.append("          var userEl = row.querySelector('.text-gray-900.truncate');");
         js.append("          var linkEl = row.querySelector('a');"); 
         js.append("          var url = linkEl ? linkEl.href : '#';");
         js.append("          var username = userEl ? userEl.innerText : 'Unknown';");
         
+        // SAFE STRING CONCATENATION (Fixed the error here)
         js.append("          html += \"<div class='card' style='border-left:3px solid #00f3ff;'>\";");
         js.append("          html += \"<div style='font-weight:bold;'>\" + username + \"</div>\";");
         js.append("          html += \"<div style='font-size:12px; color:#888;'>STATUS: READY</div>\";");
-        // BUTTON: Navigates to the Order Page
         js.append("          html += \"<button class='btn' onclick='location.href=\\\"\" + url + \"\\\"'>OPEN COCKPIT</button>\";");
         js.append("          html += \"</div>\";");
+        
         js.append("        }");
         js.append("      }");
         js.append("    }");
-        
-        // Header with count
-        js.append("    var header = \"<div class='category-header'>⚡ ACTION REQUIRED (\" + count + \")</div>\";");
-        js.append("    if(html !== '') document.getElementById('calendar-feed').innerHTML = header + html;");
-        js.append("    else document.getElementById('calendar-feed').innerHTML = \"<p style='color:#666; text-align:center;'>No missions detected.</p>\";");
+        js.append("    if(html !== '') document.getElementById('calendar-feed').innerHTML = html;");
         js.append("  };");
         
         js.append("  setTimeout(function() { window.scanData(); }, 1500);");
