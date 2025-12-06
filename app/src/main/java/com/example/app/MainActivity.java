@@ -240,7 +240,7 @@ public class MainActivity extends Activity {
         js.append("      });");
 
         js.append("      if(videoCount > 0) { listContainer.innerHTML = html; }");
-        js.append("      else { listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check "Videos In Review" section.</p>'; }");
+        js.append("      else { listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check \"Videos In Review\" section.</p>'; }");
 
         js.append("    } else if (attempts >= maxAttempts) {");
         js.append("      clearInterval(poller);");
