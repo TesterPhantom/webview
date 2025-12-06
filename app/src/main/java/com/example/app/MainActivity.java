@@ -13,11 +13,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
-// NOTE: You will need to import necessary networking classes here 
-// (e.g., java.net.URL, HttpURLConnection, or use OkHttp/Volley/etc. 
-// depending on your build environment.)
-// Since I cannot modify your build.gradle, this is a placeholder.
-
 public class MainActivity extends Activity {
 
     private WebView mWebView;
@@ -33,8 +28,9 @@ public class MainActivity extends Activity {
 
         // 1. ENABLE FEATURES
         webSettings.setJavaScriptEnabled(true);
-        webSettings.setDomStorageEnabled(true);
+        webSettings.setDomStorageEnabled(true); // CRITICAL: Enables Local Storage access
         webSettings.setDatabaseEnabled(true);
+
         webSettings.setAllowFileAccess(true);
         webSettings.setAllowContentAccess(true);
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
@@ -70,13 +66,8 @@ public class MainActivity extends Activity {
         }
         
         if (url.contains("order") || url.contains("details") || url.contains("job")) {
-            String orderId = getOrderIdFromUrl(url);
-            if (orderId != null) {
-                // IMPORTANT: Now calling the JS method which triggers the Java API fetch
-                injectApiSelector(view, orderId); 
-            } else {
-                injectVideoSelectorFallback(view); 
-            }
+            // Direct call to the Sniffer, which handles data acquisition internally
+            injectStorageSniffer(view); 
             return;
         }
 
@@ -90,7 +81,7 @@ public class MainActivity extends Activity {
         }
     }
     
-    // --- UTILITY: Extract Order ID from the current URL ---
+    // --- UTILITY: Extract Order ID (Kept for compatibility) ---
     private String getOrderIdFromUrl(String url) {
         try {
             int index = url.indexOf("/orders/");
@@ -115,7 +106,7 @@ public class MainActivity extends Activity {
 
     public class WebAppInterface {
         Context mContext;
-        WebAppAppInterface(Context c) { mContext = c; }
+        WebAppInterface(Context c) { mContext = c; }
         
         @JavascriptInterface
         public void copyToClipboard(String text) {
@@ -124,61 +115,10 @@ public class MainActivity extends Activity {
             clipboard.setPrimaryClip(clip);
             Toast.makeText(mContext, "Copied", Toast.LENGTH_SHORT).show();
         }
-
-        // --- NEW: JS Calls Java to fetch the authenticated API data ---
-        @JavascriptInterface
-        public void fetchApiData(String orderId) {
-            // IMPORTANT: Networking operations must be done on a separate thread
-            new Thread(() -> {
-                try {
-                    // 1. Get Authentication Cookies from the WebView session
-                    String url = "https://app.tokportal.com"; 
-                    String cookies = CookieManager.getInstance().getCookie(url);
-
-                    // 2. Build the API URL
-                    String apiEndpoint = "https://app.tokportal.com/api/manager/orders/" + orderId + "/details";
-
-                    // --- TO DO: Implement Java Network Fetching Here ---
-                    // Example (using conceptual non-built-in networking library):
-                    // String jsonResponse = new SimpleHttpClient().get(apiEndpoint, cookies);
-                    // For now, we use a placeholder:
-
-                    String jsonResponse = performNetworkRequest(apiEndpoint, cookies);
-                    
-                    // 3. Pass JSON result back to the JavaScript thread
-                    mWebView.post(() -> {
-                        // Pass JSON string back to JS function for rendering
-                        mWebView.loadUrl("javascript:handleApiResponse('" + jsonResponse.replace("'", "\\'") + "');");
-                    });
-                } catch (Exception e) {
-                    mWebView.post(() -> {
-                        mWebView.loadUrl("javascript:handleApiError('Java Fetch Failed: " + e.getMessage() + "');");
-                    });
-                }
-            }).start();
-        }
     }
-    
-    // =========================================================================
-    // !!! CRITICAL TO DO !!!
-    // You MUST implement this function to make the network request.
-    // This is where you use your preferred Android networking client (HttpURLConnection, OkHttp, etc.)
-    // and explicitly include the cookies.
-    // =========================================================================
-    private String performNetworkRequest(String url, String cookieHeader) {
-        // Since I cannot access your build environment, this is a SIMPLIFIED placeholder.
-        // You MUST replace this entire body with your working Java network request logic.
-        // The return must be the JSON string.
-        
-        // This placeholder will simulate a permanent failure for now until implemented:
-        return "{\"error\": \"Network function not implemented.\"}"; 
-    }
-    // =========================================================================
-
 
     // --- MODULE 1: COMMAND DECK (Working Scraper) ---
     private void injectDashboardUI(WebView view) {
-        // ... (Module 1 code remains the same)
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
         js.append("  var oldCp = document.getElementById('cockpit-root'); if(oldCp) oldCp.remove();");
@@ -265,7 +205,7 @@ public class MainActivity extends Activity {
         view.loadUrl(js.toString());
     }
     
-    // --- MODULE 2: FALLBACK VIDEO SELECTOR (FOR REFERENCE ONLY) ---
+    // --- MODULE 2: FALLBACK VIDEO SELECTOR (For error state) ---
     private void injectVideoSelectorFallback(WebView view) {
         // Fallback for when no Order ID can be parsed
         StringBuilder js = new StringBuilder();
@@ -297,15 +237,15 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: API-DRIVEN VIDEO SELECTOR (TRIGGER)
+    // MODULE 2: LOCAL STORAGE SNIFFER & RENDERER
     // =========================================================
-    private void injectApiSelector(WebView view, String orderId) {
+    private void injectStorageSniffer(WebView view) {
         StringBuilder js = new StringBuilder();
         
         js.append("javascript:(function() {");
         js.append("  if(document.getElementById('selector-root')) return;");
         
-        // --- UI INJECTION ---
+        // --- UI BASE ---
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
@@ -320,66 +260,87 @@ public class MainActivity extends Activity {
         js.append("  var root = document.createElement('div');");
         js.append("  root.id = 'selector-root';");
         js.append("  root.innerHTML = `");
-        js.append("    <h2 style='font-family:Orbitron; color:white; margin-bottom:20px;'>TARGET ACQUISITION (API MODE)</h2>");
-        js.append("    <p style='color:#ccc; margin-bottom:10px;' id='status-msg'>Requesting data from Java layer...</p>");
+        js.append("    <h2 style='font-family:Orbitron; color:white; margin-bottom:20px;'>TARGET ACQUISITION (SNIFFING)</h2>");
+        js.append("    <p style='color:#ccc; margin-bottom:10px;' id='status-msg'>Searching local storage for video data...</p>");
         js.append("    <div id='video-list'>Loading...</div>");
         js.append("    <button class='sel-btn' style='margin-top:20px; border-color:#666; color:#666;' onclick='history.back()'>BACK TO CALENDAR</button>");
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
         
-        // --- API RESPONSE HANDLERS ---
+        // --- LOCAL STORAGE SNIFFING LOGIC ---
         js.append("  var listContainer = document.getElementById('video-list');");
         js.append("  var statusMsg = document.getElementById('status-msg');");
         js.append("  var currentUrl = window.location.href.split('#')[0];");
         js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
-
-        // Global function called by Java when network request completes
-        js.append("  window.handleApiResponse = function(jsonString) {");
-        js.append("    try {");
-        js.append("      var data = JSON.parse(jsonString);");
-        js.append("      if (data.error) throw new Error(data.error);"); // Check for placeholder error
+        js.append("  var attempts = 0;");
+        js.append("  var maxAttempts = 10;"); 
         
-        js.append("      if (!data.videos || data.videos.length === 0) {");
-        js.append("        listContainer.innerHTML = '<p style=\"color:#f00;\">No videos found in API response.</p>';");
-        js.append("        statusMsg.innerText = 'API Fetch Complete - No Videos Found.';");
-        js.append("        return;");
+        js.append("  function sniffStorage() {");
+        js.append("    // Search Local Storage");
+        js.append("    for (var i = 0; i < localStorage.length; i++) {");
+        js.append("      var key = localStorage.key(i);");
+        js.append("      var value = localStorage.getItem(key);");
+        js.append("      if (value && value.includes('\"videos\"') && value.includes('\"title\"') && value.includes('\"videosToUpload\"')) {");
+        js.append("        try { return JSON.parse(value); } catch(e) {}");
         js.append("      }");
-        
-        js.append("      var html = '';");
-        js.append("      var videoCount = 0;");
-        
-        js.append("      data.videos.forEach(function(video, index) {");
-        js.append("        var cleanTitle = video.title || 'Untitled Video';");
-        js.append("        var status = video.status === 'accepted' ? 'READY' : (video.status === 'in_review' ? 'IN REVIEW' : 'SCHEDULED');");
-        
-        js.append("        if (video.status === 'accepted') {");
-        js.append("          videoCount++;");
-        js.append("          var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
-        js.append("          html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + ' (' + status + ')' + '</button>';");
-        js.append("        }");
-        js.append("      });");
-
-        js.append("      if (videoCount > 0) {");
-        js.append("        listContainer.innerHTML = html;");
-        js.append("        statusMsg.innerText = 'Select Video Mission:';");
-        js.append("      } else {");
-        js.append("        listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check \\\"Videos In Review\\\" status.</p>';");
-        js.append("        statusMsg.innerText = 'API Fetch Complete - No Ready Videos.';");
-        js.append("      }");
-        
-        js.append("    } catch (e) {");
-        js.append("      window.handleApiError('JSON Parse Error: ' + e.message + '. Raw data:' + jsonString.substring(0, 50) + '...');");
         js.append("    }");
-        js.append("  };");
+        js.append("    // Search Session Storage (if the data is volatile)");
+        js.append("    for (var i = 0; i < sessionStorage.length; i++) {");
+        js.append("      var key = sessionStorage.key(i);");
+        js.append("      var value = sessionStorage.getItem(key);");
+        js.append("      if (value && value.includes('\"videos\"') && value.includes('\"title\"') && value.includes('\"videosToUpload\"')) {");
+        js.append("        try { return JSON.parse(value); } catch(e) {}");
+        js.append("      }");
+        js.append("    }");
+        js.append("    return null;");
+        js.append("  }");
         
-        // Global function called by Java for errors
-        js.append("  window.handleApiError = function(message) {");
-        js.append("    statusMsg.innerText = 'FATAL API ERROR: ' + message;");
-        js.append("    listContainer.innerHTML = '<p style=\"color:#f00;\">Please ensure you are logged in and refresh the page.</p>';");
-        js.append("  };");
+        js.append("  function renderSelector(data) {");
+        js.append("    // Data structure check (adjust based on the JSON you expect)");
+        js.append("    var videos = data.videos || (data.order && data.order.videos) || [];"); 
+        js.append("    if (videos.length === 0) {");
+        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">Sniffer found data, but no videos array.</p>';");
+        js.append("      statusMsg.innerText = 'Sniffer Found Data - Missing Videos.';");
+        js.append("      return;");
+        js.append("    }");
+        
+        js.append("    var html = '';");
+        js.append("    var videoCount = 0;");
+        
+        js.append("    videos.forEach(function(video, index) {");
+        js.append("      var cleanTitle = video.title || 'Untitled Video';");
+        js.append("      var status = video.status === 'accepted' ? 'READY' : (video.status === 'in_review' ? 'IN REVIEW' : 'SCHEDULED');");
+        
+        js.append("      if (video.status === 'accepted') {");
+        js.append("        videoCount++;");
+        js.append("        var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
+        js.append("        html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + ' (' + status + ')' + '</button>';");
+        js.append("      }");
+        js.append("    });");
 
-        // --- Execute Java Fetch ---
-        js.append("  Android.fetchApiData('" + orderId + "');");
+        js.append("    if (videoCount > 0) {");
+        js.append("      listContainer.innerHTML = html;");
+        js.append("      statusMsg.innerText = 'Sniffer Success! Select Mission:';");
+        js.append("    } else {");
+        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check \\\"Videos In Review\\\" status.</p>';");
+        js.append("      statusMsg.innerText = 'Sniffer Success - No Ready Videos.';");
+        js.append("    }");
+        js.append("  }"); // End renderSelector function
+
+        // --- Execute Polling ---
+        js.append("  var poller = setInterval(function() {");
+        js.append("    attempts++;");
+        js.append("    var videoData = sniffStorage();");
+        
+        js.append("    if (videoData) {");
+        js.append("      clearInterval(poller);");
+        js.append("      renderSelector(videoData);");
+        js.append("    } else if (attempts >= maxAttempts) {");
+        js.append("      clearInterval(poller);");
+        js.append("      statusMsg.innerText = 'FATAL SNIFFER ERROR: Data not found in local storage after 10s.';");
+        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">Please ensure the Order Details page has fully loaded and refresh.</p>';");
+        js.append("    }");
+        js.append("  }, 1000);"); // Check every 1 second
         
         js.append("})()");
         view.loadUrl(js.toString());
