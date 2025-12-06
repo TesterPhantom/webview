@@ -18,6 +18,15 @@ public class MainActivity extends Activity {
         mWebView = findViewById(R.id.activity_main_webview);
         WebSettings webSettings = mWebView.getSettings();
         webSettings.setJavaScriptEnabled(true);
+        // --- MEMORY & LOGIN FIX ---
+        // 1. Enable Storage (Crucial for modern apps)
+        webSettings.setDomStorageEnabled(true);
+        webSettings.setDatabaseEnabled(true);
+
+        // 2. Allow Cookies (This keeps you logged in)
+        android.webkit.CookieManager.getInstance().setAcceptCookie(true);
+        android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(mWebView, true);
+        // --------------------------
         mWebView.setWebViewClient(new android.webkit.WebViewClient());
 
 
