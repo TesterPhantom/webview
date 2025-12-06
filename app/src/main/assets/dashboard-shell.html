@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TokPortal - Mission Control</title>
+    <title>TokPortal - Command Center</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -12,16 +12,16 @@
         :root {
             --bg-deep: #050507;
             --bg-panel: #13131f;
-            --primary: #00f3ff;       /* Cyan */
-            --secondary: #bd00ff;     /* Magenta */
+            --primary: #00f3ff;
+            --secondary: #bd00ff;
             --text-main: #ffffff;
             --text-muted: #8b9bb4;
-            --glass: rgba(19, 19, 31, 0.8);
+            --glass: rgba(19, 19, 31, 0.95);
             --glow-primary: 0 0 15px rgba(0, 243, 255, 0.3);
             --sidebar-width: 260px;
         }
 
-        /* --- 2. GLOBAL RESET --- */
+        /* --- 2. GLOBAL RESET & LAYOUT --- */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         
         body {
@@ -30,27 +30,25 @@
             font-family: 'Inter', sans-serif;
             height: 100vh;
             overflow: hidden;
-            /* Cyberpunk Background Gradient */
             background-image: 
                 radial-gradient(circle at 10% 50%, rgba(189, 0, 255, 0.08) 0%, transparent 40%),
                 radial-gradient(circle at 90% 20%, rgba(0, 243, 255, 0.05) 0%, transparent 40%);
         }
 
-        /* --- 3. LAYOUT --- */
         .app-container {
             display: grid;
             grid-template-columns: var(--sidebar-width) 1fr;
             height: 100vh;
         }
 
-        /* --- 4. SIDEBAR --- */
+        /* --- 3. SIDEBAR --- */
         .sidebar {
             background: var(--glass);
-            backdrop-filter: blur(10px);
             border-right: 1px solid rgba(255, 255, 255, 0.05);
             padding: 2rem 1.5rem;
             display: flex;
             flex-direction: column;
+            z-index: 10;
         }
 
         .logo-area {
@@ -72,7 +70,7 @@
             border-radius: 8px;
             color: var(--text-muted);
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
             margin-bottom: 5px;
         }
 
@@ -85,11 +83,18 @@
             box-shadow: var(--glow-primary);
         }
 
-        /* --- 5. MAIN CONTENT --- */
+        /* --- 4. MAIN CONTENT AREA --- */
         .main-content {
             padding: 2rem;
             overflow-y: auto;
+            position: relative;
         }
+
+        /* View Switching Logic */
+        .view-section { display: none; animation: fadeIn 0.3s ease; }
+        .view-section.active-view { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .header-area {
             display: flex;
@@ -97,75 +102,83 @@
             align-items: center;
             margin-bottom: 2rem;
         }
-        
         .page-title { font-family: 'Orbitron', sans-serif; letter-spacing: 1px; }
 
-        /* --- 6. MISSION CARDS CSS --- */
-        .missions-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 20px;
-        }
-
+        /* --- 5. MISSIONS CSS --- */
+        .missions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .mission-card {
-            background: var(--bg-panel);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            padding: 20px;
-            position: relative;
-            transition: transform 0.2s;
+            background: var(--bg-panel); border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px; padding: 20px; position: relative; transition: transform 0.2s;
         }
-
-        .mission-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--primary);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
-        }
-
-        /* Left Status Bar */
-        .mission-card::before {
-            content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
-            background: var(--text-muted);
-        }
+        .mission-card:hover { transform: translateY(-5px); border-color: var(--primary); box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
+        .mission-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--text-muted); }
         .mission-card.priority-high::before { background: var(--secondary); box-shadow: 0 0 10px var(--secondary); }
         .mission-card.priority-norm::before { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+        .xp-pill { background: rgba(0, 243, 255, 0.1); color: var(--primary); padding: 4px 10px; border-radius: 4px; font-family: 'Orbitron'; font-size: 0.8rem; border: 1px solid rgba(0, 243, 255, 0.3); }
+        .btn-action { width: 100%; padding: 10px; background: transparent; border: 1px solid var(--primary); color: var(--primary); font-family: 'Orbitron'; cursor: pointer; transition: 0.2s; margin-top: 15px; }
+        .btn-action:hover { background: var(--primary); color: #000; box-shadow: var(--glow-primary); }
 
-        .mission-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
-        
-        .xp-pill {
-            background: rgba(0, 243, 255, 0.1);
-            color: var(--primary);
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 0.8rem;
-            border: 1px solid rgba(0, 243, 255, 0.3);
+        /* --- 6. CALENDAR CSS (NEW) --- */
+        .calendar-header {
+            display: flex; justify-content: space-between; margin-bottom: 15px; background: var(--bg-panel); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);
+        }
+        .cal-nav-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem; }
+        .cal-nav-btn:hover { color: var(--primary); }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
         }
 
-        .mission-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 10px; }
-        .mission-desc { color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; margin-bottom: 20px; }
-
-        .progress-container {
-            background: rgba(255,255,255,0.05); height: 6px; border-radius: 3px; margin-bottom: 15px; overflow: hidden;
+        .day-header {
+            text-align: center; color: var(--text-muted); font-size: 0.9rem; padding-bottom: 10px; font-weight: 600;
         }
-        .progress-bar { height: 100%; background: var(--primary); box-shadow: 0 0 10px var(--primary); }
 
-        .btn-action {
-            width: 100%;
+        .cal-day {
+            background: var(--bg-panel);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 8px;
+            min-height: 120px;
             padding: 10px;
-            background: transparent;
-            border: 1px solid var(--primary);
-            color: var(--primary);
-            font-family: 'Orbitron', sans-serif;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .cal-day:hover { background: rgba(255,255,255,0.02); }
+        
+        .cal-day.today {
+            border-color: var(--primary);
+            box-shadow: inset 0 0 10px rgba(0, 243, 255, 0.1);
+        }
+        
+        .day-num { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px; display: block; }
+        .today .day-num { color: var(--primary); font-weight: bold; }
+
+        /* The "Event Pill" inside the calendar */
+        .post-pill {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid var(--text-muted);
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-bottom: 6px;
             cursor: pointer;
             transition: 0.2s;
         }
-        .btn-action:hover { background: var(--primary); color: #000; box-shadow: var(--glow-primary); }
+        .post-pill:hover { background: rgba(255,255,255,0.1); }
+        
+        .post-pill.tiktok { border-color: #ff0050; }
+        .post-pill.insta { border-color: #bd00ff; }
+        
+        .post-time { font-weight: bold; color: white; display: block; }
+        .post-desc { color: var(--text-muted); font-size: 0.7rem; }
 
-        /* Responsive Mobile Adjustment */
         @media (max-width: 768px) {
             .app-container { grid-template-columns: 1fr; }
-            .sidebar { display: none; } /* Hidden on mobile for now */
+            .sidebar { display: none; }
+            .calendar-grid { grid-template-columns: 1fr; } /* List view on phone */
+            .cal-day { min-height: auto; }
         }
     </style>
 </head>
@@ -174,69 +187,109 @@
     <div class="app-container">
         <aside class="sidebar">
             <div class="logo-area"><i class="fa-solid fa-bolt"></i> TOKPORTAL</div>
-            <div class="nav-item"><i class="fa-solid fa-chart-line"></i> Overview</div>
-            <div class="nav-item active"><i class="fa-solid fa-crosshairs"></i> Missions</div>
-            <div class="nav-item"><i class="fa-solid fa-users"></i> Accounts</div>
-            <div class="nav-item"><i class="fa-solid fa-gear"></i> Settings</div>
+            
+            <div class="nav-item" onclick="switchView('overview')"><i class="fa-solid fa-chart-line"></i> Overview</div>
+            <div class="nav-item active" id="btn-missions" onclick="switchView('missions')"><i class="fa-solid fa-crosshairs"></i> Missions</div>
+            <div class="nav-item" id="btn-scheduler" onclick="switchView('scheduler')"><i class="fa-solid fa-calendar-days"></i> Scheduler</div>
+            <div class="nav-item" onclick="switchView('settings')"><i class="fa-solid fa-gear"></i> Settings</div>
         </aside>
 
         <main class="main-content">
-            <div class="header-area">
-                <h1 class="page-title">Available Missions</h1>
-                <div style="text-align: right;">
-                    <div style="font-size: 0.8rem; color: var(--text-muted);">Current XP</div>
-                    <div style="font-family: 'Orbitron'; color: var(--primary);">1,250 XP</div>
+
+            <div id="view-missions" class="view-section active-view">
+                <div class="header-area">
+                    <h1 class="page-title">Available Missions</h1>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">Current XP</div>
+                        <div style="font-family: 'Orbitron'; color: var(--primary);">1,250 XP</div>
+                    </div>
+                </div>
+
+                <div class="missions-grid">
+                    <div class="mission-card priority-norm">
+                        <div class="mission-header"><span style="font-size: 0.8rem; color: #aaa;"><i class="fa-solid fa-fire"></i> DAILY</span><span class="xp-pill">+150 XP</span></div>
+                        <div class="mission-title">Engagement Protocol</div>
+                        <p style="color:var(--text-muted); font-size:0.9rem;">Reply to 5 comments on your latest video.</p>
+                        <button class="btn-action">CONTINUE</button>
+                    </div>
+                    <div class="mission-card priority-high">
+                        <div class="mission-header"><span style="font-size: 0.8rem; color: var(--secondary);"><i class="fa-solid fa-crown"></i> WEEKLY</span><span class="xp-pill" style="color:var(--secondary); border-color:var(--secondary);">+500 XP</span></div>
+                        <div class="mission-title">Viral Surge</div>
+                        <p style="color:var(--text-muted); font-size:0.9rem;">Achieve 10k views on a single video.</p>
+                        <button class="btn-action" style="border-color:var(--secondary); color:var(--secondary);">BOOST POST</button>
+                    </div>
                 </div>
             </div>
 
-            <div class="missions-grid">
-                
-                <div class="mission-card priority-norm">
-                    <div class="mission-header">
-                        <span style="font-size: 0.8rem; color: #aaa;"><i class="fa-solid fa-fire"></i> DAILY</span>
-                        <span class="xp-pill">+150 XP</span>
+            <div id="view-scheduler" class="view-section">
+                <div class="header-area">
+                    <h1 class="page-title">Content Scheduler</h1>
+                    <button class="btn-action" style="width: auto; padding: 8px 20px;">+ NEW POST</button>
+                </div>
+
+                <div class="calendar-header">
+                    <button class="cal-nav-btn"><i class="fa-solid fa-chevron-left"></i></button>
+                    <h3 style="font-family:'Orbitron'">December 2025</h3>
+                    <button class="cal-nav-btn"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+
+                <div class="calendar-grid" style="margin-bottom: 10px;">
+                    <div class="day-header">MON</div><div class="day-header">TUE</div><div class="day-header">WED</div>
+                    <div class="day-header">THU</div><div class="day-header">FRI</div><div class="day-header">SAT</div>
+                    <div class="day-header">SUN</div>
+                </div>
+
+                <div class="calendar-grid">
+                    <div class="cal-day"><span class="day-num">01</span></div>
+                    <div class="cal-day"><span class="day-num">02</span></div>
+                    <div class="cal-day">
+                        <span class="day-num">03</span>
+                        <div class="post-pill tiktok">
+                            <span class="post-time">10:00 AM</span>
+                            <span class="post-desc">Gameplay Clip</span>
+                        </div>
                     </div>
-                    <div class="mission-title">Engagement Protocol</div>
-                    <p class="mission-desc">Reply to 5 comments on your latest video.</p>
+                    <div class="cal-day"><span class="day-num">04</span></div>
                     
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px;">
-                        <span>Progress</span><span>2 / 5</span>
+                    <div class="cal-day today">
+                        <span class="day-num">05 (Today)</span>
+                         <div class="post-pill insta">
+                            <span class="post-time">2:00 PM</span>
+                            <span class="post-desc">Story Teaser</span>
+                        </div>
                     </div>
-                    <div class="progress-container"><div class="progress-bar" style="width: 40%;"></div></div>
                     
-                    <button class="btn-action">CONTINUE</button>
+                    <div class="cal-day"><span class="day-num">06</span></div>
+                    <div class="cal-day"><span class="day-num">07</span></div>
                 </div>
-
-                <div class="mission-card priority-high">
-                    <div class="mission-header">
-                        <span style="font-size: 0.8rem; color: var(--secondary);"><i class="fa-solid fa-crown"></i> WEEKLY</span>
-                        <span class="xp-pill" style="color: var(--secondary); border-color: var(--secondary); background: rgba(189,0,255,0.1);">+500 XP</span>
-                    </div>
-                    <div class="mission-title">Viral Surge</div>
-                    <p class="mission-desc">Achieve 10k views on a single video this week.</p>
-
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px;">
-                        <span>Progress</span><span>8.2k / 10k</span>
-                    </div>
-                    <div class="progress-container"><div class="progress-bar" style="width: 82%; background: var(--secondary); box-shadow: 0 0 10px var(--secondary);"></div></div>
-
-                    <button class="btn-action" style="border-color: var(--secondary); color: var(--secondary);">BOOST POST</button>
-                </div>
-
-                <div class="mission-card">
-                    <div class="mission-header">
-                        <span style="font-size: 0.8rem; color: #aaa;"><i class="fa-solid fa-link"></i> SETUP</span>
-                        <span class="xp-pill">+50 XP</span>
-                    </div>
-                    <div class="mission-title">Connect Instagram</div>
-                    <p class="mission-desc">Link your IG account for cross-platform analytics.</p>
-                    <div class="progress-container"><div class="progress-bar" style="width: 0%;"></div></div>
-                    <button class="btn-action">START</button>
-                </div>
-
             </div>
+
+            <div id="view-overview" class="view-section"><h1>Overview (Coming Soon)</h1></div>
+            <div id="view-settings" class="view-section"><h1>Settings (Coming Soon)</h1></div>
+
         </main>
     </div>
+
+    <script>
+        function switchView(viewName) {
+            // 1. Hide all views
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active-view'));
+            
+            // 2. Remove 'active' class from all nav buttons
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+            // 3. Show the selected view
+            const selectedView = document.getElementById('view-' + viewName);
+            if(selectedView) {
+                selectedView.classList.add('active-view');
+            }
+
+            // 4. Highlight the sidebar button (simple logic for now)
+            // Note: In a real app we'd map this cleaner, but this works for the shell
+            if(viewName === 'missions') document.getElementById('btn-missions').classList.add('active');
+            if(viewName === 'scheduler') document.getElementById('btn-scheduler').classList.add('active');
+        }
+    </script>
 
 </body>
 </html>
