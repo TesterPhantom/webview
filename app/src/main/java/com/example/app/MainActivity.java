@@ -5,7 +5,6 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
@@ -37,44 +36,29 @@ public class MainActivity extends Activity {
         mWebView.addJavascriptInterface(new WebAppInterface(this), "Android");
 
         mWebView.setWebViewClient(new WebViewClient() {
-            
-            // 1. STANDARD PAGE LOAD
             @Override
             public void onPageFinished(WebView view, String url) {
-                handleUrl(view, url);
-            }
+                
+                // 1. MISSION COCKPIT
+                if (url.contains("order") || url.contains("details") || url.contains("job")) {
+                    injectMissionCockpit(view);
+                    return;
+                }
 
-            // 2. SPA / AJAX NAVIGATION WATCHDOG (The Fix!)
-            @Override
-            public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
-                super.doUpdateVisitedHistory(view, url, isReload);
-                handleUrl(view, url);
+                // 2. COMMAND DECK
+                if (url.contains("/calendar")) {
+                    injectDashboardUI(view);
+                    return;
+                }
+
+                // 3. AUTO-PILOT
+                if (url.contains("account-manager") && !url.contains("login")) {
+                    view.loadUrl("https://app.tokportal.com/account-manager/calendar");
+                }
             }
         });
 
         mWebView.loadUrl("https://app.tokportal.com/account-manager/calendar");
-    }
-
-    // --- CENTRAL ROUTER ---
-    private void handleUrl(WebView view, String url) {
-        // A. MISSION COCKPIT (Order Details)
-        // Check for 'order' or numbers in path which usually indicates a specific item
-        if (url.contains("order") || url.contains("details") || url.matches(".*\\/\\d+$")) {
-            injectMissionCockpit(view);
-            return;
-        }
-
-        // B. COMMAND DECK (Calendar)
-        if (url.contains("/calendar")) {
-            injectDashboardUI(view);
-            return;
-        }
-
-        // C. AUTO-PILOT
-        if (url.contains("account-manager") && !url.contains("login") && !url.contains("order")) {
-            // Only redirect if we are drifting in the dashboard, NOT if we are viewing an order
-            view.loadUrl("https://app.tokportal.com/account-manager/calendar");
-        }
     }
 
     public class WebAppInterface {
@@ -89,12 +73,10 @@ public class MainActivity extends Activity {
         }
     }
 
-    // --- MODULE 1: COMMAND DECK ---
+    // --- MODULE 1: COMMAND DECK (Updated to Pass Username) ---
     private void injectDashboardUI(WebView view) {
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
-        // Clear any previous cockpit if it exists
-        js.append("  var oldCp = document.getElementById('cockpit-root'); if(oldCp) oldCp.remove();");
         js.append("  if(document.getElementById('cyber-root')) return;");
         
         js.append("  var style = document.createElement('style');");
@@ -149,10 +131,14 @@ public class MainActivity extends Activity {
         js.append("        var userEl = row.querySelector('.text-gray-900.truncate');");
         js.append("        var username = userEl ? userEl.innerText : 'Unknown';");
         js.append("        var linkEl = row.querySelector('a'); var href = linkEl ? linkEl.href : '';");
+        
+        // --- PASS USERNAME VIA HASH ---
+        js.append("        var cleanName = encodeURIComponent(username);");
+        
         js.append("        if(txt.indexOf('scheduled') !== -1) {");
         js.append("          count++; actionHTML += \"<div class='card' style='border-left:3px solid #00f3ff;'>\";");
         js.append("          actionHTML += \"<div class='card-row'><div style='font-weight:bold; color:white; font-size:14px;'>\" + username + \"</div><div style='font-size:10px; color:#00f3ff;'>READY</div></div>\";");
-        js.append("          if(href) { actionHTML += \"<button class='btn' onclick='location.href=\\\"\" + href + \"\\\"'>OPEN COCKPIT</button>\"; }");
+        js.append("          if(href) { actionHTML += \"<button class='btn' onclick='location.href=\\\"\" + href + \"#user=\" + cleanName + \"\\\"'>OPEN COCKPIT</button>\"; }");
         js.append("          else { actionHTML += \"<button class='btn' style='border-color:#666; color:#666;'>LINK NOT FOUND</button>\"; }");
         js.append("          actionHTML += \"</div>\";");
         js.append("        } else if(fullRow.indexOf('warming') !== -1 || fullRow.indexOf('niche') !== -1) {");
@@ -174,14 +160,13 @@ public class MainActivity extends Activity {
         view.loadUrl(js.toString());
     }
 
-    // --- MODULE 2: MISSION COCKPIT (With Bunker Buster) ---
+    // --- MODULE 2: MISSION COCKPIT (Refined Scraper) ---
     private void injectMissionCockpit(WebView view) {
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
         js.append("  if(document.getElementById('cockpit-root')) return;");
-        // Clear Dashboard
-        js.append("  var oldDash = document.getElementById('cyber-root'); if(oldDash) oldDash.remove();");
 
+        // CSS
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap');");
@@ -195,7 +180,6 @@ public class MainActivity extends Activity {
         js.append("    .data-val { color:white; background:#111; padding:6px; border:1px solid #333; font-size:14px; flex:1; margin:0 10px; overflow:hidden; text-overflow:ellipsis; }");
         js.append("    .btn-copy { background:#00f3ff; color:black; border:none; padding:4px 8px; font-weight:bold; cursor:pointer; font-size:10px; border-radius:2px; }");
         js.append("    .action-btn { background:rgba(0,243,255,0.1); border:1px solid #00f3ff; color:#00f3ff; padding:15px; margin-bottom:10px; text-align:center; cursor:pointer; font-weight:bold; width:100%; display:block; }");
-        
         js.append("    div[role='dialog'], .modal, .popup { background-color: #13131f !important; color: white !important; border: 1px solid #00f3ff !important; }");
         js.append("    h1, h2, h3, h4, strong { color: #00f3ff !important; }");
         js.append("    input, textarea, select { background: #050507 !important; color: white !important; border: 1px solid #333 !important; }");
@@ -203,11 +187,13 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
+        // HTML
         js.append("  var root = document.createElement('div');");
         js.append("  root.id = 'cockpit-root';");
         js.append("  root.innerHTML = `");
         js.append("    <div class='cp-header'><div class='cp-title'>MISSION COCKPIT</div><div style='color:#00ff9d'>SECURE</div></div>");
-        js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// CREDENTIALS</div><div class='data-row'><span>USER</span><span class='data-val' id='cp-user'>Scanning...</span><button class='btn-copy' onclick='copyText(\"cp-user\")'>COPY</button></div><div class='data-row'><span>PASS</span><span class='data-val' id='cp-pass'>********</span><button class='btn-copy' onclick='copyText(\"cp-pass\")'>COPY</button></div></div>");
+        
+        js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// CREDENTIALS</div><div class='data-row'><span>USER</span><span class='data-val' id='cp-user'>Detecting...</span><button class='btn-copy' onclick='copyText(\"cp-user\")'>COPY</button></div><div class='data-row'><span>PASS</span><span class='data-val' id='cp-pass'>See Account Page</span></div></div>");
         js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// ACTIONS</div><button class='action-btn' id='dl-btn' onclick='triggerRealUpload()'>1. INITIALIZE UPLOAD</button><div class='cp-panel-title' style='margin-top:10px;'>METADATA</div><div class='data-row'><span class='data-val' id='cp-caption' style='height:40px;'>Scanning...</span><button class='btn-copy' onclick='copyText(\"cp-caption\")'>COPY</button></div></div>");
         js.append("    <button class='action-btn' style='border-color:#ff0050; color:#ff0050; margin-top:auto;' onclick='history.back()'>ABORT MISSION</button>");
         js.append("  `;");
@@ -217,7 +203,9 @@ public class MainActivity extends Activity {
 
         js.append("  window.copyText = function(id) { Android.copyToClipboard(document.getElementById(id).innerText); };");
         
+        // --- TRIGGER & BUNKER BUSTER (Updated) ---
         js.append("  window.triggerRealUpload = function() {");
+        // 1. Find the Upload Button
         js.append("    var buttons = document.getElementsByTagName('button'); var found = false;");
         js.append("    for(var i=0; i<buttons.length; i++) { if(buttons[i].innerText.toLowerCase().includes('upload this video')) { buttons[i].click(); found = true; break; } }");
         js.append("    if(!found) { var links = document.getElementsByTagName('a'); for(var j=0; j<links.length; j++) { if(links[j].innerText.toLowerCase().includes('upload')) { links[j].click(); found=true; break; } } }");
@@ -225,33 +213,43 @@ public class MainActivity extends Activity {
         js.append("    if(found) {");
         js.append("       document.getElementById('cockpit-root').style.display = 'none';");
         js.append("       document.getElementById('return-btn').style.display = 'block';");
-        // BUNKER BUSTER: Auto-Click "I Understand"
-        js.append("       setInterval(function() {");
+        // 2. Bunker Buster: Click "I Understand" if it appears
+        js.append("       var checks = 0;");
+        js.append("       var buster = setInterval(function() {");
+        js.append("          checks++; if(checks > 10) clearInterval(buster);");
         js.append("          var btns = document.getElementsByTagName('button');");
         js.append("          for(var k=0; k<btns.length; k++) { if(btns[k].innerText.includes('Understand')) { btns[k].click(); } }");
         js.append("       }, 500);");
-        js.append("    } else { alert('Target Not Found. Please scroll down.'); }");
+        js.append("    } else { alert('Upload Button Not Found. Scroll down?'); }");
         js.append("  };");
 
-        // INTELLIGENT SCRAPER
-        js.append("  var attempts = 0;");
-        js.append("  var scraper = setInterval(function() {");
-        js.append("    attempts++;");
-        js.append("    var candidates = document.querySelectorAll('h1, h2, .text-xl, .font-bold, strong');");
-        js.append("    for(var i=0; i<candidates.length; i++) {");
-        js.append("       var txt = candidates[i].innerText.trim();");
-        js.append("       if(txt.length > 3 && !txt.includes('Account Manager') && !txt.includes('TokPortal') && !txt.includes('Upload') && !txt.includes('Status')) {");
-        js.append("          document.getElementById('cp-user').innerText = txt; break;");
+        // --- SCRAPER (Using URL Hash + Relative Position) ---
+        js.append("  setTimeout(function() {");
+        
+        // 1. GET USER FROM URL HASH
+        js.append("    if(window.location.hash.includes('user=')) {");
+        js.append("       var user = decodeURIComponent(window.location.hash.split('user=')[1]);");
+        js.append("       document.getElementById('cp-user').innerText = user;");
+        js.append("    }");
+        
+        // 2. GET CAPTION (Look relative to the Upload Button)
+        js.append("    var buttons = document.getElementsByTagName('button');");
+        js.append("    for(var i=0; i<buttons.length; i++) {");
+        js.append("       if(buttons[i].innerText.toLowerCase().includes('upload this video')) {");
+        // Look at previous sibling or parent's text
+        js.append("          var container = buttons[i].parentElement;");
+        js.append("          if(container) {");
+        js.append("             var text = container.innerText;");
+        js.append("             // Simple heuristic: Take text that isn't the button label");
+        js.append("             var lines = text.split('\\n');");
+        js.append("             for(var k=0; k<lines.length; k++) {");
+        js.append("                if(lines[k].length > 10 && !lines[k].includes('Upload') && !lines[k].includes('$')) {");
+        js.append("                   document.getElementById('cp-caption').innerText = lines[k]; break;");
+        js.append("                }");
+        js.append("             }");
+        js.append("          }");
         js.append("       }");
         js.append("    }");
-        js.append("    var allDivs = document.getElementsByTagName('div');");
-        js.append("    for(var j=0; j<allDivs.length; j++) {");
-        js.append("       if(allDivs[j].innerText.includes('Description to use:')) {");
-        js.append("          var sib = allDivs[j].nextElementSibling || allDivs[j].querySelector('p, div, span');");
-        js.append("          if(sib && sib.innerText.length > 2) { document.getElementById('cp-caption').innerText = sib.innerText; break; }");
-        js.append("       }");
-        js.append("    }");
-        js.append("    if(attempts > 5) clearInterval(scraper);");
         js.append("  }, 1000);");
 
         js.append("})()");
