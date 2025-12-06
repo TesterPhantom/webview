@@ -208,12 +208,12 @@ public class MainActivity extends Activity {
         js.append("  var currentUrl = window.location.href.split('#')[0];");
         js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
         js.append("  var attempts = 0;");
-        js.append("  var maxAttempts = 10;"); // Poll for up to 10 seconds (10 * 1000ms)
+        js.append("  var maxAttempts = 10;"); 
         js.append("  var poller = setInterval(function() {");
         js.append("    attempts++;");
         
         // **GOLD STANDARD SELECTOR:** Finds the card container based on confirmed class.
-        js.append("    var videoCards = document.querySelectorAll('div[class*=\"rounded-lg shadow-sm border-gray-200\"]');"); 
+        js.append("    var videoCards = document.querySelectorAll('div[class*=\"rounded-lg shadow-sm border-gray-200\"]:not([class*=\"border-green\"])');"); // Exclude validated cards
         
         js.append("    if (videoCards.length > 0) {");
         js.append("      clearInterval(poller);");
@@ -228,11 +228,12 @@ public class MainActivity extends Activity {
         // 2. Determine Status (based on text content of the card)
         js.append("        var status = card.innerText.includes('Accepted') ? 'READY' : 'SCHEDULED';");
         
-        // 3. Filter for TO UPLOAD videos (must contain 'Accepted' or 'To Upload' type status)
-        js.append("        if (titleEl && titleEl.innerText.length > 5 && card.innerText.includes('Accepted')) {"); 
+        // 3. Filter for TO UPLOAD videos (must contain the Upload button)
+        js.append("        var uploadBtn = card.querySelector('button.btn-primary');");
+
+        js.append("        if (titleEl && titleEl.innerText.length > 5 && uploadBtn && uploadBtn.innerText.includes('Upload')) {"); 
         js.append("          videoCount++;");
         js.append("          var cleanTitle = titleEl.innerText.trim();");
-        // Pass the index (which video card to click later) and username
         js.append("          var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
         js.append("          html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + '<span class=\"sel-status\">' + status + '</span></button>';");
         js.append("        }");
@@ -245,7 +246,7 @@ public class MainActivity extends Activity {
         js.append("      clearInterval(poller);");
         js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">Timeout: Videos failed to load dynamically after 10s.</p>';");
         js.append("    }");
-        js.append("  }, 1000);"); // Check every 1 second
+        js.append("  }, 1000);"); 
 
         js.append("})()");
         view.loadUrl(js.toString());
