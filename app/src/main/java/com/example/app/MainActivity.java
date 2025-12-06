@@ -67,13 +67,11 @@ public class MainActivity extends Activity {
         }
         
         if (url.contains("order") || url.contains("details") || url.contains("job")) {
-            // Extract Order ID and pass it to the API-Driven Module
             String orderId = getOrderIdFromUrl(url);
             if (orderId != null) {
-                // CORRECTED CALL: Use the stable API fetch method
                 injectApiSelector(view, orderId); 
             } else {
-                // Fallback (though this path should now be obsolete)
+                // Fallback used only if Order ID cannot be parsed.
                 injectVideoSelectorFallback(view); 
             }
             return;
@@ -211,9 +209,8 @@ public class MainActivity extends Activity {
         js.append("})()");
         view.loadUrl(js.toString());
     }
-
+    
     // --- MODULE 2: FALLBACK VIDEO SELECTOR (FOR REFERENCE ONLY) ---
-    // This function is kept for completeness as a historical fallback.
     private void injectVideoSelectorFallback(WebView view) {
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
@@ -281,6 +278,9 @@ public class MainActivity extends Activity {
         js.append("  var currentUrl = window.location.href.split('#')[0];");
         js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
         
+        // **COOKIE INJECTION FIX:** Get the current cookies to authenticate the API request
+        js.append("  var cookies = document.cookie;");
+        
         js.append("  function renderSelector(data) {");
         js.append("    if (!data.videos || data.videos.length === 0) {");
         js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">No videos found in API response.</p>';");
@@ -308,14 +308,18 @@ public class MainActivity extends Activity {
         js.append("      listContainer.innerHTML = html;");
         js.append("      statusMsg.innerText = 'Select Video Mission:';");
         js.append("    } else {");
-        // Correctly escaped syntax for the error message
         js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check \\\"Videos In Review\\\" status.</p>';");
         js.append("      statusMsg.innerText = 'API Fetch Complete - No Ready Videos.';");
         js.append("    }");
         js.append("  }"); // End renderSelector function
 
-        // Execute API Fetch
-        js.append("  fetch(apiEndpoint)");
+        // Execute API Fetch with Cookies
+        js.append("  fetch(apiEndpoint, {");
+        js.append("    headers: {");
+        js.append("      'Cookie': cookies,"); // Inject cookies for authentication
+        js.append("      'Accept': 'application/json'");
+        js.append("    }");
+        js.append("  })");
         js.append("    .then(response => {");
         js.append("      if (!response.ok) {");
         js.append("        throw new Error('API request failed with status ' + response.status);");
@@ -403,7 +407,7 @@ public class MainActivity extends Activity {
         js.append("    var buttons = document.getElementsByTagName('button'); var found = false;");
         
         js.append("    var videoIndex = parseInt(new URLSearchParams(window.location.hash.slice(1)).get('video')) || 0;");
-        js.append("    var uploadBtns = document.querySelectorAll('button.btn-primary');"); // Use confirmed class
+        js.append("    var uploadBtns = document.querySelectorAll('button.btn-primary');"); 
 
         js.append("    if(uploadBtns.length > videoIndex) {");
         js.append("       uploadBtns[videoIndex].click();");
