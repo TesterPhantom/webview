@@ -175,7 +175,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: VIDEO SELECTOR SCREEN (Text Anchor Scraper)
+    // MODULE 2: VIDEO SELECTOR SCREEN (Hyper-Traversal Scraper)
     // =========================================================
     private void injectVideoSelector(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -202,10 +202,10 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
-        // --- SCRAPER LOGIC: Find all cards by anchoring to the unique "Upload" button text ---
+        // --- SCRAPER LOGIC: Anchor to the "Upload this video" text, and climb DOM aggressively ---
         js.append("  var currentUrl = window.location.href.split('#')[0];");
         js.append("  var listContainer = document.getElementById('video-list');");
-        js.append("  var buttons = document.getElementsByTagName('button');"); // Get all buttons (or a tags)
+        js.append("  var buttons = document.getElementsByTagName('button');"); // Get all buttons
         
         js.append("  var html = '';");
         js.append("  var videoCount = 0;");
@@ -213,23 +213,25 @@ public class MainActivity extends Activity {
         
         js.append("  for(var i = 0; i < buttons.length; i++) {");
         js.append("    var btn = buttons[i];");
-        js.append("    if (btn.innerText.includes('Upload this video')) {"); // Found an anchor button
+        js.append("    if (btn.innerText.includes('Upload this video')) {"); // Found the unique button
         
-        // Traverse up to find the element containing the title (usually h3/h4/bold element)
+        // **HYPER-TRAVERSAL:** Climb parents until we find a container big enough to hold the title.
         js.append("      var card = btn.parentElement;");
         js.append("      var titleEl = null;");
-        js.append("      var status = card.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
-
-        // Safely search for the title text by looking at siblings/children
-        js.append("      var headers = card.querySelectorAll('h3, h4, .font-bold');");
-        js.append("      for(var j=0; j<headers.length; j++) {");
-        js.append("          if(headers[j].innerText.includes('Glippy')) { titleEl = headers[j]; break; }"); // Anchor to the username/title structure
+        js.append("      var climbCount = 0;");
+        js.append("      while(card && climbCount < 10) {");
+        // Look for the title inside the parent. Title is likely h3 or h4 or bold text.
+        js.append("          titleEl = card.querySelector('h3, h4, .font-bold');");
+        js.append("          if (titleEl && titleEl.innerText.includes('Glippy')) break;"); // Success if we find title
+        js.append("          card = card.parentElement;"); // Climb higher
+        js.append("          climbCount++;");
         js.append("      }");
-
+        
         js.append("      if (titleEl) {");
         js.append("        videoCount++;");
+        js.append("        var status = card.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
         js.append("        var cleanTitle = titleEl.innerText.trim();");
-        js.append("        var buttonHref = currentUrl + '#video=' + i + '&user=' + userName;"); // Use 'i' as the index/ID
+        js.append("        var buttonHref = currentUrl + '#video=' + i + '&user=' + userName;");
         js.append("        html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + '<span class=\"sel-status\">' + status + '</span></button>';");
         js.append("      }");
         js.append("    }");
