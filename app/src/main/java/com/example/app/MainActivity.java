@@ -175,7 +175,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: VIDEO SELECTOR SCREEN (Hyper-Traversal Scraper)
+    // MODULE 2: VIDEO SELECTOR SCREEN (DIAGNOSTIC MODE)
     // =========================================================
     private void injectVideoSelector(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -187,63 +187,41 @@ public class MainActivity extends Activity {
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
         js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); 
         js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; padding:15px; overflow-y:auto; }");
+        js.append("    .diag-item { border: 1px dashed #00f3ff; margin-bottom: 5px; padding: 5px; font-size: 10px; color: #00ff9d; }");
         js.append("    .sel-btn { background:#13131f; border:1px solid #00f3ff; color:white; padding:15px; margin-bottom:10px; text-align:left; font-weight:bold; width:100%; display:block; }");
-        js.append("    .sel-status { float:right; color:#00f3ff; font-weight:normal; }");
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
         js.append("  var root = document.createElement('div');");
         js.append("  root.id = 'selector-root';");
         js.append("  root.innerHTML = `");
-        js.append("    <h2 style='font-family:Orbitron; color:white; margin-bottom:20px;'>TARGET ACQUISITION</h2>");
-        js.append("    <p style='color:#ccc; margin-bottom:10px;'>Select the video mission to initiate cockpit view:</p>");
-        js.append("    <div id='video-list'>Scanning videos...</div>");
+        js.append("    <h2 style='font-family:Orbitron; color:white; margin-bottom:10px;'>DIAGNOSTIC SCAN RESULTS</h2>");
+        js.append("    <p style='color:#ccc; margin-bottom:10px;'>Found ALL text elements with classes (h3, h4, font-bold) and all buttons:</p>");
+        js.append("    <div id='diagnostic-list'>Scanning...</div>");
         js.append("    <button class='sel-btn' style='margin-top:20px; border-color:#666; color:#666;' onclick='history.back()'>BACK TO CALENDAR</button>");
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
-        // --- SCRAPER LOGIC: Anchor to the "Upload this video" text, and climb DOM aggressively ---
-        js.append("  var currentUrl = window.location.href.split('#')[0];");
-        js.append("  var listContainer = document.getElementById('video-list');");
-        js.append("  var buttons = document.getElementsByTagName('button');"); // Get all buttons
-        
+        // --- DIAGNOSTIC SCRAPER: Dump all key text elements ---
+        js.append("  var listContainer = document.getElementById('diagnostic-list');");
+        js.append("  var elements = document.querySelectorAll('h3, h4, .font-bold, button');"); // Broad search for relevant text/buttons
         js.append("  var html = '';");
-        js.append("  var videoCount = 0;");
-        js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
         
-        js.append("  for(var i = 0; i < buttons.length; i++) {");
-        js.append("    var btn = buttons[i];");
-        js.append("    if (btn.innerText.includes('Upload this video')) {"); // Found the unique button
-        
-        // **HYPER-TRAVERSAL:** Climb parents until we find a container big enough to hold the title.
-        js.append("      var card = btn.parentElement;");
-        js.append("      var titleEl = null;");
-        js.append("      var climbCount = 0;");
-        js.append("      while(card && climbCount < 10) {");
-        // Look for the title inside the parent. Title is likely h3 or h4 or bold text.
-        js.append("          titleEl = card.querySelector('h3, h4, .font-bold');");
-        js.append("          if (titleEl && titleEl.innerText.includes('Glippy')) break;"); // Success if we find title
-        js.append("          card = card.parentElement;"); // Climb higher
-        js.append("          climbCount++;");
-        js.append("      }");
-        
-        js.append("      if (titleEl) {");
-        js.append("        videoCount++;");
-        js.append("        var status = card.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
-        js.append("        var cleanTitle = titleEl.innerText.trim();");
-        js.append("        var buttonHref = currentUrl + '#video=' + i + '&user=' + userName;");
-        js.append("        html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + '<span class=\"sel-status\">' + status + '</span></button>';");
-        js.append("      }");
+        js.append("  elements.forEach(function(el, index) {");
+        js.append("    var text = el.innerText.trim();");
+        js.append("    var tag = el.tagName;");
+        js.append("    var classes = el.className;");
+        js.append("    if (text.length > 2 && text !== '...'){"); // Filter out noise
+        js.append("      html += '<div class=\"diag-item\">[' + tag + '] [' + classes.substring(0, 15) + '] ' + text.substring(0, 50) + '...</div>';");
         js.append("    }");
-        js.append("  }"); // End of button loop
+        js.append("  });");
 
-        js.append("  if(videoCount > 0) { listContainer.innerHTML = html; }");
-        js.append("  else { listContainer.innerHTML = '<p style=\"color:#f00;\">No video cards detected. Try refreshing.</p>'; }");
+        js.append("  if(html.length > 0) { listContainer.innerHTML = html; }");
+        js.append("  else { listContainer.innerHTML = '<p style=\"color:#f00;\">No usable text elements found.</p>'; }");
 
         js.append("})()");
         view.loadUrl(js.toString());
     }
-
     // =========================================================
     // MODULE 3: MISSION COCKPIT (Final Aggregation Screen)
     // =========================================================
