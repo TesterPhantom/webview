@@ -3,28 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TokPortal - Command Center</title>
+    <title>TokPortal - Mission Control</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* --- 1. THEME VARIABLES (The DNA) --- */
+        /* --- 1. THEME VARIABLES --- */
         :root {
-            /* Colors */
-            --bg-deep: #050507;       /* The Void */
-            --bg-panel: #13131f;      /* Panel Background */
-            --primary: #00f3ff;       /* Neon Cyan */
-            --secondary: #bd00ff;     /* Hot Magenta */
+            --bg-deep: #050507;
+            --bg-panel: #13131f;
+            --primary: #00f3ff;       /* Cyan */
+            --secondary: #bd00ff;     /* Magenta */
             --text-main: #ffffff;
             --text-muted: #8b9bb4;
-            
-            /* Effects */
-            --glass: rgba(19, 19, 31, 0.7);
+            --glass: rgba(19, 19, 31, 0.8);
             --glow-primary: 0 0 15px rgba(0, 243, 255, 0.3);
-            --glow-text: 0 0 10px rgba(0, 243, 255, 0.5);
-            --border-glow: 1px solid rgba(0, 243, 255, 0.2);
-            
-            /* Sizing */
             --sidebar-width: 260px;
         }
 
@@ -36,47 +29,39 @@
             color: var(--text-main);
             font-family: 'Inter', sans-serif;
             height: 100vh;
-            overflow: hidden; /* No scroll on body, scroll inside panels */
+            overflow: hidden;
+            /* Cyberpunk Background Gradient */
             background-image: 
-                radial-gradient(circle at 15% 50%, rgba(189, 0, 255, 0.05) 0%, transparent 25%),
-                radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.05) 0%, transparent 25%);
+                radial-gradient(circle at 10% 50%, rgba(189, 0, 255, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 20%, rgba(0, 243, 255, 0.05) 0%, transparent 40%);
         }
 
-        /* --- 3. LAYOUT GRID --- */
+        /* --- 3. LAYOUT --- */
         .app-container {
             display: grid;
-            grid-template-columns: var(--sidebar-width) 1fr; /* Sidebar | Content */
+            grid-template-columns: var(--sidebar-width) 1fr;
             height: 100vh;
         }
 
-        /* --- 4. SIDEBAR (Command Rail) --- */
+        /* --- 4. SIDEBAR --- */
         .sidebar {
             background: var(--glass);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(10px);
             border-right: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 2rem 1.5rem;
             display: flex;
             flex-direction: column;
-            padding: 2rem 1.5rem;
-            z-index: 10;
         }
 
         .logo-area {
-            margin-bottom: 3rem;
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
-            letter-spacing: 2px;
+            font-size: 1.4rem;
             color: var(--primary);
-            text-shadow: var(--glow-text);
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.4);
+            margin-bottom: 3rem;
             display: flex;
             align-items: center;
             gap: 10px;
-        }
-
-        .nav-menu {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
         }
 
         .nav-item {
@@ -87,117 +72,168 @@
             border-radius: 8px;
             color: var(--text-muted);
             cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 500;
-            border: 1px solid transparent;
+            transition: all 0.3s;
+            margin-bottom: 5px;
         }
 
-        /* Hover & Active States */
-        .nav-item:hover {
-            background: rgba(255, 255, 255, 0.03);
-            color: var(--text-main);
-            border-color: rgba(255, 255, 255, 0.1);
-        }
-
+        .nav-item:hover { color: white; background: rgba(255,255,255,0.03); }
+        
         .nav-item.active {
             background: rgba(0, 243, 255, 0.1);
             color: var(--primary);
-            border-color: rgba(0, 243, 255, 0.3);
+            border: 1px solid rgba(0, 243, 255, 0.2);
             box-shadow: var(--glow-primary);
         }
 
-        .nav-item i { width: 20px; text-align: center; }
-
-        /* --- 5. MAIN CONTENT AREA --- */
+        /* --- 5. MAIN CONTENT --- */
         .main-content {
             padding: 2rem;
-            overflow-y: auto; /* Scroll ONLY the content, not the sidebar */
-            position: relative;
+            overflow-y: auto;
         }
 
-        /* Header within content */
-        .top-bar {
+        .header-area {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
         }
+        
+        .page-title { font-family: 'Orbitron', sans-serif; letter-spacing: 1px; }
 
-        .page-title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.8rem;
-            color: white;
+        /* --- 6. MISSION CARDS CSS --- */
+        .missions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
         }
 
-        .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            background: var(--secondary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            box-shadow: 0 0 10px rgba(189, 0, 255, 0.4);
-        }
-
-        /* --- 6. PLACEHOLDER CARD (For testing) --- */
-        .content-placeholder {
+        .mission-card {
             background: var(--bg-panel);
             border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            height: 400px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-muted);
-            border-left: 3px solid var(--primary); /* Cyberpunk accent */
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            transition: transform 0.2s;
         }
 
+        .mission-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        }
+
+        /* Left Status Bar */
+        .mission-card::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+            background: var(--text-muted);
+        }
+        .mission-card.priority-high::before { background: var(--secondary); box-shadow: 0 0 10px var(--secondary); }
+        .mission-card.priority-norm::before { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+
+        .mission-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        
+        .xp-pill {
+            background: rgba(0, 243, 255, 0.1);
+            color: var(--primary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            border: 1px solid rgba(0, 243, 255, 0.3);
+        }
+
+        .mission-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 10px; }
+        .mission-desc { color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; margin-bottom: 20px; }
+
+        .progress-container {
+            background: rgba(255,255,255,0.05); height: 6px; border-radius: 3px; margin-bottom: 15px; overflow: hidden;
+        }
+        .progress-bar { height: 100%; background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+
+        .btn-action {
+            width: 100%;
+            padding: 10px;
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            font-family: 'Orbitron', sans-serif;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-action:hover { background: var(--primary); color: #000; box-shadow: var(--glow-primary); }
+
+        /* Responsive Mobile Adjustment */
+        @media (max-width: 768px) {
+            .app-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; } /* Hidden on mobile for now */
+        }
     </style>
 </head>
 <body>
 
     <div class="app-container">
         <aside class="sidebar">
-            <div class="logo-area">
-                <i class="fa-solid fa-bolt"></i> TOKPORTAL
-            </div>
-
-            <ul class="nav-menu">
-                <li class="nav-item active">
-                    <i class="fa-solid fa-chart-line"></i> Dashboard
-                </li>
-                <li class="nav-item">
-                    <i class="fa-solid fa-calendar-check"></i> Scheduler
-                </li>
-                <li class="nav-item">
-                    <i class="fa-solid fa-users"></i> Accounts
-                </li>
-                <li class="nav-item">
-                    <i class="fa-solid fa-gear"></i> Settings
-                </li>
-            </ul>
+            <div class="logo-area"><i class="fa-solid fa-bolt"></i> TOKPORTAL</div>
+            <div class="nav-item"><i class="fa-solid fa-chart-line"></i> Overview</div>
+            <div class="nav-item active"><i class="fa-solid fa-crosshairs"></i> Missions</div>
+            <div class="nav-item"><i class="fa-solid fa-users"></i> Accounts</div>
+            <div class="nav-item"><i class="fa-solid fa-gear"></i> Settings</div>
         </aside>
 
         <main class="main-content">
-            <div class="top-bar">
-                <h1 class="page-title">Dashboard Overview</h1>
-                
-                <div class="user-profile">
-                    <span style="color: var(--text-muted); font-size: 0.9rem;">Welcome, Stephen</span>
-                    <div class="avatar">S</div>
+            <div class="header-area">
+                <h1 class="page-title">Available Missions</h1>
+                <div style="text-align: right;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">Current XP</div>
+                    <div style="font-family: 'Orbitron'; color: var(--primary);">1,250 XP</div>
                 </div>
             </div>
 
-            <div class="content-placeholder">
-                <p> // PAGE CONTENT WILL LOAD HERE //</p>
+            <div class="missions-grid">
+                
+                <div class="mission-card priority-norm">
+                    <div class="mission-header">
+                        <span style="font-size: 0.8rem; color: #aaa;"><i class="fa-solid fa-fire"></i> DAILY</span>
+                        <span class="xp-pill">+150 XP</span>
+                    </div>
+                    <div class="mission-title">Engagement Protocol</div>
+                    <p class="mission-desc">Reply to 5 comments on your latest video.</p>
+                    
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px;">
+                        <span>Progress</span><span>2 / 5</span>
+                    </div>
+                    <div class="progress-container"><div class="progress-bar" style="width: 40%;"></div></div>
+                    
+                    <button class="btn-action">CONTINUE</button>
+                </div>
+
+                <div class="mission-card priority-high">
+                    <div class="mission-header">
+                        <span style="font-size: 0.8rem; color: var(--secondary);"><i class="fa-solid fa-crown"></i> WEEKLY</span>
+                        <span class="xp-pill" style="color: var(--secondary); border-color: var(--secondary); background: rgba(189,0,255,0.1);">+500 XP</span>
+                    </div>
+                    <div class="mission-title">Viral Surge</div>
+                    <p class="mission-desc">Achieve 10k views on a single video this week.</p>
+
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px;">
+                        <span>Progress</span><span>8.2k / 10k</span>
+                    </div>
+                    <div class="progress-container"><div class="progress-bar" style="width: 82%; background: var(--secondary); box-shadow: 0 0 10px var(--secondary);"></div></div>
+
+                    <button class="btn-action" style="border-color: var(--secondary); color: var(--secondary);">BOOST POST</button>
+                </div>
+
+                <div class="mission-card">
+                    <div class="mission-header">
+                        <span style="font-size: 0.8rem; color: #aaa;"><i class="fa-solid fa-link"></i> SETUP</span>
+                        <span class="xp-pill">+50 XP</span>
+                    </div>
+                    <div class="mission-title">Connect Instagram</div>
+                    <p class="mission-desc">Link your IG account for cross-platform analytics.</p>
+                    <div class="progress-container"><div class="progress-bar" style="width: 0%;"></div></div>
+                    <button class="btn-action">START</button>
+                </div>
+
             </div>
         </main>
     </div>
