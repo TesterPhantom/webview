@@ -206,7 +206,7 @@ public class MainActivity extends Activity {
         js.append("  var currentUrl = window.location.href.split('#')[0];");
         js.append("  var listContainer = document.getElementById('video-list');");
         
-        // Find all buttons that contain the unique class fragment 'flex items-cent' identified in the diagnostic scan
+        // Anchor to the unique class fragment 'flex items-cent' identified in the diagnostic scan
         js.append("  var uploadButtons = document.querySelectorAll('button[class*=\"flex items-cent\"]');"); 
         
         js.append("  var html = '';");
@@ -215,20 +215,21 @@ public class MainActivity extends Activity {
         
         js.append("  uploadButtons.forEach(function(btn, index) {");
         
-        // Traverse up to find the main card container
-        js.append("    var card = btn.parentElement;");
+        // **HYPER-TRAVERSAL:** Find the Title by climbing up to a stable container
+        js.append("    var card = btn;"); // Start traversal from the button element
         js.append("    var titleEl = null;");
         js.append("    var climbCount = 0;");
         js.append("    while(card && climbCount < 10) {");
-        js.append("        titleEl = card.querySelector('h3, h4, strong');");
-        js.append("        if (titleEl && titleEl.innerText.includes('Glippy')) break;"); // Success if we find title
+        js.append("        titleEl = card.querySelector('h3, h4, strong');"); // Search descendants for title
+        js.append("        if (titleEl && titleEl.innerText.includes('Glippy')) break;"); // Success if we find the title
         js.append("        card = card.parentElement;"); // Climb higher
         js.append("        climbCount++;");
         js.append("    }");
         
         js.append("    if (titleEl) {");
         js.append("      videoCount++;");
-        js.append("      var status = titleEl.parentElement.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
+        // Status check should be on the final card container
+        js.append("      var status = card.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
         js.append("      var cleanTitle = titleEl.innerText.trim();");
         // Pass the index (which video card to click later) and username
         js.append("      var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
@@ -332,13 +333,11 @@ public class MainActivity extends Activity {
         // --- DATA HARVEST (Baton Pass + Targeted Caption Scrape) ---
         js.append("  setTimeout(function() {");
         
-        // 1. GET USER FROM URL HASH
         js.append("    if(window.location.hash.includes('user=')) {");
         js.append("       var user = decodeURIComponent(window.location.hash.split('user=')[1].split('&')[0]);");
         js.append("       document.getElementById('cp-user').innerText = user;");
         js.append("    }");
         
-        // 2. SCRAPE CAPTION (Look relative to the Upload Button)
         js.append("    var captionFound = false;");
         js.append("    var possibleCaptions = document.querySelectorAll('p, div, span, strong');"); 
         js.append("    for(var i=0; i<possibleCaptions.length; i++) {");
