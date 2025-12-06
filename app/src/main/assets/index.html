@@ -1,90 +1,156 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manager Mode</title>
+    <title>TOKPORTAL // MAIN</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #050505;
+            --neon-red: #ff003c;
+            --neon-blue: #00f3ff;
+            --neon-green: #00ff66;
+            --neon-gold: #ffd700;
+            --border: #333;
+        }
+
         body {
-            background-color: #121212; /* Dark Background */
-            color: white;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            text-align: center;
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--bg-color);
+            color: #fff;
             margin: 0;
             padding: 20px;
-        }
-
-        h2 {
-            margin-top: 40px;
-            margin-bottom: 30px;
-            color: #ffffff;
-            font-weight: 800;
-            letter-spacing: 1px;
-        }
-
-        /* The Button Design */
-        .card {
-            display: block;
-            background: #1e1e1e;
-            border: 1px solid #333;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 15px;
-            text-decoration: none;
-            color: white;
-            font-weight: 600;
-            font-size: 18px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: transform 0.1s;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            flex-direction: column;
+            min-height: 90vh;
         }
 
-        .card:active {
-            transform: scale(0.98);
-            background: #252525;
+        /* --- HEADER --- */
+        header {
+            margin-bottom: 40px;
+            margin-top: 20px;
+            border-bottom: 1px solid #222;
+            padding-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: flex-end;
+        }
+        h1 { margin: 0; font-size: 28px; letter-spacing: 2px; text-transform: uppercase; line-height: 1;}
+        .sub-head { font-family: 'Share Tech Mono'; color: var(--neon-blue); font-size: 12px; display: block; margin-top: 5px; }
+        .status-dot { width: 8px; height: 8px; background: var(--neon-green); border-radius: 50%; box-shadow: 0 0 10px var(--neon-green); animation: pulse 2s infinite;}
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* --- BUTTONS --- */
+        .menu-grid {
+            display: flex; flex-direction: column; gap: 20px;
         }
 
-        /* Specific Colors for each task */
-        .mission { border-left: 5px solid #ff0050; } /* TikTok Red */
-        .orders  { border-left: 5px solid #00f2ea; } /* TikTok Blue */
-        .upload  { border-left: 5px solid #ffffff; }
-        .payout  { border-left: 5px solid #4caf50; } /* Green */
+        .tech-btn {
+            position: relative;
+            background: rgba(20, 20, 20, 0.6);
+            border: 1px solid #333;
+            padding: 20px;
+            text-decoration: none;
+            display: flex; justify-content: space-between; align-items: center;
+            /* The Sci-Fi Cut Corner Look */
+            clip-path: polygon(
+                10px 0, 100% 0, 
+                100% calc(100% - 10px), calc(100% - 10px) 100%, 
+                0 100%, 0 10px
+            );
+            transition: all 0.2s ease;
+        }
 
-        .arrow { color: #555; font-size: 24px; }
+        /* Hover/Active Effects */
+        .tech-btn:active { transform: scale(0.98); background: #222; }
+
+        /* Text Styling */
+        .btn-text { display: flex; flex-direction: column; }
+        .btn-title { font-size: 20px; font-weight: 700; color: #eee; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-sub { font-family: 'Share Tech Mono'; font-size: 11px; color: #666; margin-top: 4px; }
+        .arrow { font-size: 18px; color: #444; }
+
+        /* --- SPECIFIC COLORS --- */
         
-        .footer {
-            margin-top: 50px;
-            font-size: 12px;
-            color: #555;
+        /* 1. MISSIONS (Red) */
+        .b-mission { border-left: 4px solid var(--neon-red); }
+        .b-mission:active { box-shadow: 0 0 15px rgba(255, 0, 60, 0.2); border-color: var(--neon-red); }
+        .b-mission .arrow { color: var(--neon-red); }
+
+        /* 2. ORDERS (Blue) */
+        .b-orders { border-left: 4px solid var(--neon-blue); }
+        .b-orders:active { box-shadow: 0 0 15px rgba(0, 243, 255, 0.2); border-color: var(--neon-blue); }
+        .b-orders .arrow { color: var(--neon-blue); }
+
+        /* 3. CALENDAR (Gold - Special) */
+        .b-calendar { border-left: 4px solid var(--neon-gold); background: linear-gradient(90deg, rgba(255, 215, 0, 0.05), transparent); }
+        .b-calendar:active { box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); border-color: var(--neon-gold); }
+        .b-calendar .arrow { color: var(--neon-gold); }
+
+        /* 4. PAYOUTS (Green) */
+        .b-payout { border-left: 4px solid var(--neon-green); }
+        .b-payout:active { box-shadow: 0 0 15px rgba(0, 255, 102, 0.2); border-color: var(--neon-green); }
+        .b-payout .arrow { color: var(--neon-green); }
+
+        /* --- FOOTER --- */
+        footer {
+            margin-top: auto; padding-top: 30px;
+            text-align: center; color: #444; 
+            font-family: 'Share Tech Mono'; font-size: 10px;
         }
+
     </style>
 </head>
 <body>
 
-    <h2>MANAGER MODE</h2>
+    <header>
+        <div>
+            <h1>TOKPORTAL</h1>
+            <span class="sub-head">SYSTEM // MANAGER MODE</span>
+        </div>
+        <div class="status-dot"></div>
+    </header>
 
-    <a href="https://app.tokportal.com/account-manager/dashboard" class="card mission">
-        <span>Available Missions</span>
-        <span class="arrow">&rarr;</span>
-    </a>
+    <div class="menu-grid">
 
-    <a href="https://app.tokportal.com/account-manager/orders" class="card orders">
-        <span>Orders in Progress</span>
-        <span class="arrow">&rarr;</span>
-    </a>
+        <a href="https://app.tokportal.com/campaigns" class="tech-btn b-mission">
+            <div class="btn-text">
+                <span class="btn-title">Missions</span>
+                <span class="btn-sub">BROWSE CAMPAIGNS</span>
+            </div>
+            <div class="arrow">➜</div>
+        </a>
 
-    <a href="file:///android_asset/cockpit.html" class="card upload">
-        <span>Upload Calendar</span>
-        <span class="arrow">&rarr;</span>
-    </a>
+        <a href="https://app.tokportal.com/orders" class="tech-btn b-orders">
+            <div class="btn-text">
+                <span class="btn-title">Orders</span>
+                <span class="btn-sub">TRACK PROGRESS</span>
+            </div>
+            <div class="arrow">➜</div>
+        </a>
 
-    <a href="https://app.tokportal.com/account-manager/payouts" class="card payout">
-        <span>Payouts</span>
-        <span class="arrow">&rarr;</span>
-    </a>
+        <a href="file:///android_asset/cockpit.html" class="tech-btn b-calendar">
+            <div class="btn-text">
+                <span class="btn-title">Cockpit</span>
+                <span class="btn-sub">UPLOAD CALENDAR & DATA</span>
+            </div>
+            <div class="arrow">➜</div>
+        </a>
 
-    <div class="footer">TokPortal App v1.0</div>
+        <a href="https://app.tokportal.com/payouts" class="tech-btn b-payout">
+            <div class="btn-text">
+                <span class="btn-title">Payouts</span>
+                <span class="btn-sub">FINANCIAL RECORDS</span>
+            </div>
+            <div class="arrow">➜</div>
+        </a>
+
+    </div>
+
+    <footer>
+        SECURE CONNECTION ESTABLISHED<br>
+        V.2.0.1
+    </footer>
 
 </body>
 </html>
