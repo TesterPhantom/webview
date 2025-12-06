@@ -16,6 +16,7 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
 
     private WebView mWebView;
+    private static final String REDIRECT_URL_BASE = "file:///android_asset/blank.html"; // Create an empty blank.html in assets
 
     @Override
     @SuppressLint("SetJavaScriptEnabled")
@@ -28,7 +29,7 @@ public class MainActivity extends Activity {
 
         // 1. ENABLE FEATURES
         webSettings.setJavaScriptEnabled(true);
-        webSettings.setDomStorageEnabled(true); // CRITICAL: Enables Local Storage access
+        webSettings.setDomStorageEnabled(true);
         webSettings.setDatabaseEnabled(true);
 
         webSettings.setAllowFileAccess(true);
@@ -43,45 +44,47 @@ public class MainActivity extends Activity {
 
         mWebView.setWebViewClient(new WebViewClient() {
             
+            // Critical change: Intercept navigation *before* page finishes loading
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                // If we are navigating away from the order page, stop redirecting.
+                if (url.startsWith(REDIRECT_URL_BASE)) {
+                    view.loadUrl(url); // Allow our internal redirect
+                    return true;
+                }
+                
+                if (url.contains("/orders/") || url.contains("/details/") || url.contains("/job/")) {
+                    String orderId = getOrderIdFromUrl(url);
+                    String userId = getUserNameFromUrlHash(url);
+                    
+                    if (orderId != null && userId != null) {
+                        // **REDIRECT LOCK:** Redirect to a blank page carrying the necessary data
+                        String redirectUrl = REDIRECT_URL_BASE + 
+                            "#orderId=" + orderId + 
+                            "&userId=" + userId;
+                        view.loadUrl(redirectUrl);
+                        return true; // Stop the WebView from loading the hostile URL
+                    }
+                }
+                
+                return false; // Load all other URLs normally
+            }
+            
             @Override
             public void onPageFinished(WebView view, String url) {
-                handleUrl(view, url);
-            }
-
-            @Override
-            public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
-                super.doUpdateVisitedHistory(view, url, isReload);
-                handleUrl(view, url);
+                // If we are on the blank page, execute the sniffer
+                if (url.startsWith(REDIRECT_URL_BASE)) {
+                    injectStorageSniffer(view);
+                } else {
+                    handleUrl(view, url); // Handle Command Deck injection
+                }
             }
         });
 
         mWebView.loadUrl("https://app.tokportal.com/account-manager/calendar");
     }
 
-    // --- CENTRAL ROUTER LOGIC ---
-    private void handleUrl(WebView view, String url) {
-        if (url.contains("#video=")) {
-            injectMissionCockpit(view);
-            return;
-        }
-        
-        if (url.contains("order") || url.contains("details") || url.contains("job")) {
-            // Call the Sniffer directly, which now handles timing internally
-            injectStorageSniffer(view); 
-            return;
-        }
-
-        if (url.contains("/calendar")) {
-            injectDashboardUI(view);
-            return;
-        }
-
-        if (url.contains("account-manager") && !url.contains("login")) {
-            view.loadUrl("https://app.tokportal.com/account-manager/calendar");
-        }
-    }
-    
-    // --- UTILITY: Extract Order ID (Kept for compatibility) ---
+    // --- UTILITY: Extracts Order ID (Kept for compatibility) ---
     private String getOrderIdFromUrl(String url) {
         try {
             int index = url.indexOf("/orders/");
@@ -97,10 +100,21 @@ public class MainActivity extends Activity {
                     return orderId;
                 }
             }
-        } catch (Exception e) {
-            // Silence URL parsing exceptions
-        }
+        } catch (Exception e) { }
         return null;
+    }
+    
+    // --- UTILITY: Gets Username from URL Hash (or returns a placeholder/error) ---
+    private String getUserNameFromUrlHash(String url) {
+        // This relies on the original Baton Pass logic from the Calendar page (Module 1)
+        try {
+            int hashIndex = url.indexOf("#user=");
+            if (hashIndex != -1) {
+                String username = url.substring(hashIndex + 6);
+                return username.split("&")[0];
+            }
+        } catch (Exception e) { }
+        return "UnknownUser";
     }
 
 
@@ -118,7 +132,27 @@ public class MainActivity extends Activity {
     }
 
     // --- MODULE 1: COMMAND DECK (Working Scraper) ---
+    private void handleUrl(WebView view, String url) {
+        // Only handles Command Deck and general navigation now. Order page handled in shouldOverrideUrlLoading.
+        
+        if (url.contains("#video=")) {
+            injectMissionCockpit(view);
+            return;
+        }
+
+        if (url.contains("/calendar")) {
+            injectDashboardUI(view);
+            return;
+        }
+
+        if (url.contains("account-manager") && !url.contains("login") && !url.startsWith(REDIRECT_URL_BASE)) {
+            view.loadUrl("https://app.tokportal.com/account-manager/calendar");
+        }
+    }
+
+    // --- MODULE 1: COMMAND DECK (Injection code remains same) ---
     private void injectDashboardUI(WebView view) {
+        // ... (Module 1 code remains the same)
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
         js.append("  var oldCp = document.getElementById('cockpit-root'); if(oldCp) oldCp.remove();");
@@ -204,37 +238,6 @@ public class MainActivity extends Activity {
         js.append("})()");
         view.loadUrl(js.toString());
     }
-    
-    // --- MODULE 2: FALLBACK VIDEO SELECTOR (For error state) ---
-    private void injectVideoSelectorFallback(WebView view) {
-        // Fallback for when no Order ID can be parsed
-        StringBuilder js = new StringBuilder();
-        js.append("javascript:(function() {");
-        js.append("  if(document.getElementById('selector-root')) return;");
-        
-        js.append("  var style = document.createElement('style');");
-        js.append("  style.innerHTML = `");
-        js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
-        js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
-        js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); 
-        js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; padding:15px; overflow-y:auto; }");
-        js.append("    .sel-btn { background:#13131f; border:1px solid #00f3ff; color:white; padding:15px; margin-bottom:10px; text-align:left; font-weight:bold; width:100%; display:block; }");
-        js.append("    .sel-status { float:right; color:#00f3ff; font-weight:normal; }");
-        js.append("  `;");
-        js.append("  document.head.appendChild(style);");
-
-        js.append("  var root = document.createElement('div');");
-        js.append("  root.id = 'selector-root';");
-        js.append("  root.innerHTML = `");
-        js.append("    <h2 style='font-family:Orbitron; color:white; margin-bottom:20px;'>TARGET ACQUISITION (FALLBACK)</h2>");
-        js.append("    <p style='color:#ccc; margin-bottom:10px;'>Error: Could not parse Order ID from URL.</p>");
-        js.append("    <div id='video-list'>Failed to load data.</div>");
-        js.append("    <button class='sel-btn' style='margin-top:20px; border-color:#666; color:#666;' onclick='history.back()'>BACK TO CALENDAR</button>");
-        js.append("  `;");
-        js.append("  document.body.appendChild(root);");
-        js.append("})()");
-        view.loadUrl(js.toString());
-    }
 
     // =========================================================
     // MODULE 2: LOCAL STORAGE SNIFFER & RENDERER (FINALIZED)
@@ -243,96 +246,94 @@ public class MainActivity extends Activity {
         StringBuilder js = new StringBuilder();
         
         js.append("javascript:(function() {");
-        js.append("  if(document.getElementById('selector-root')) return;");
         
+        // This is the universal script to run after the redirect lock
+        
+        js.append("  function executeSniffer() {");
+        js.append("    if(document.getElementById('selector-root')) return;");
+            
         // --- UI BASE ---
-        js.append("  var style = document.createElement('style');");
-        js.append("  style.innerHTML = `");
-        js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
-        js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
-        js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); 
-        js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; padding:15px; overflow-y:auto; }");
-        js.append("    .sel-btn { background:#13131f; border:1px solid #00f3ff; color:white; padding:15px; margin-bottom:10px; text-align:left; font-weight:bold; width:100%; display:block; }");
-        js.append("    .sel-status { float:right; color:#00f3ff; font-weight:normal; }");
-        js.append("  `;");
-        js.append("  document.head.appendChild(style);");
+        js.append("    var style = document.createElement('style');");
+        js.append("    style.innerHTML = `");
+        js.append("      @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
+        js.append("      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
+        js.append("      body > *:not(#selector-root) { visibility: hidden !important; }"); 
+        js.append("      #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; padding:15px; overflow-y:auto; }");
+        js.append("      .sel-btn { background:#13131f; border:1px solid #00f3ff; color:white; padding:15px; margin-bottom:10px; text-align:left; font-weight:bold; width:100%; display:block; }");
+        js.append("      .sel-status { float:right; color:#00f3ff; font-weight:normal; }");
+        js.append("    `;");
+        js.append("    document.head.appendChild(style);");
 
-        js.append("  var root = document.createElement('div');");
-        js.append("  root.id = 'selector-root';");
-        js.append("  root.innerHTML = `");
-        js.append("    <h2 style='font-family:Orbitron; color:white; margin-bottom:20px;'>TARGET ACQUISITION (SNIFFING)</h2>");
-        js.append("    <p style='color:#ccc; margin-bottom:10px;' id='status-msg'>Searching local storage for video data...</p>");
-        js.append("    <div id='video-list'>Loading...</div>");
-        js.append("    <button class='sel-btn' style='margin-top:20px; border-color:#666; color:#666;' onclick='history.back()'>BACK TO CALENDAR</button>");
-        js.append("  `;");
-        js.append("  document.body.appendChild(root);");
+        js.append("    var root = document.createElement('div');");
+        js.append("    root.id = 'selector-root';");
+        js.append("    root.innerHTML = `");
+        js.append("      <h2 style='font-family:Orbitron; color:white; margin-bottom:20px;'>TARGET ACQUISITION (SNIFFING)</h2>");
+        js.append("      <p style='color:#ccc; margin-bottom:10px;' id='status-msg'>Searching local storage for video data...</p>");
+        js.append("      <div id='video-list'>Loading...</div>");
+        js.append("      <button class='sel-btn' style='margin-top:20px; border-color:#666; color:#666;' onclick='history.back()'>BACK TO CALENDAR</button>");
+        js.append("    `;");
+        js.append("    document.body.appendChild(root);");
         
         // --- LOCAL STORAGE SNIFFING LOGIC ---
-        js.append("  var listContainer = document.getElementById('video-list');");
-        js.append("  var statusMsg = document.getElementById('status-msg');");
-        js.append("  var currentUrl = window.location.href.split('#')[0];");
-        js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
-        js.append("  var attempts = 0;");
-        js.append("  var maxAttempts = 10;"); 
+        js.append("    var listContainer = document.getElementById('video-list');");
+        js.append("    var statusMsg = document.getElementById('status-msg');");
+        js.append("    var currentUrl = window.location.href.split('#')[0];");
+        js.append("    var params = new URLSearchParams(window.location.hash.slice(1));");
+        js.append("    var userName = params.get('userId');"); // Get user ID from the redirect hash
+        js.append("    var orderId = params.get('orderId');");
+        js.append("    var attempts = 0;");
+        js.append("    var maxAttempts = 10;"); 
         
-        // Final selector to grab the current order ID from the URL for later data lookup
-        js.append("  var path = window.location.pathname;");
-        js.append("  var orderIdMatch = path.match(/orders\\/([a-f0-9-]+)/i);");
-        js.append("  var currentOrderId = orderIdMatch ? orderIdMatch[1] : null;");
-
-
-        js.append("  function sniffStorage() {");
-        js.append("    var targetKey = 'order-details-' + currentOrderId;"); // Attempt to build a common key
-        js.append("    var keysToSearch = [targetKey, 'persist:root', 'order', 'orders'];"); // Add common generic keys
+        js.append("    function sniffStorage() {");
+        js.append("      var targetKey = 'order-details-' + orderId;"); 
+        js.append("      var keysToSearch = [targetKey, 'persist:root', 'order', 'orders'];"); 
         
-        js.append("    for (const storageType of [localStorage, sessionStorage]) {");
-        js.append("      for (const key of keysToSearch) {");
-        js.append("        var value = storageType.getItem(key);");
-        js.append("        if (value) {");
-        js.append("          // Check for unique content: includes 'videos' and 'title' (in case key is dynamic)");
-        js.append("          if (value.includes('\"videos\"') && value.includes('\"title\"')) {");
-        js.append("            try { return JSON.parse(value); } catch(e) {}");
+        js.append("      for (const storageType of [localStorage, sessionStorage]) {");
+        js.append("        for (const key of keysToSearch) {");
+        js.append("          var value = storageType.getItem(key);");
+        js.append("          if (value) {");
+        js.append("            if (value.includes('\"videos\"') && value.includes('\"title\"')) {");
+        js.append("              try { return JSON.parse(value); } catch(e) {}");
+        js.append("            }");
         js.append("          }");
         js.append("        }");
         js.append("      }");
-        js.append("    }");
-        js.append("    return null;");
-        js.append("  }");
-        
-        js.append("  function renderSelector(data) {");
-        js.append("    var videos = data.videos || (data.order && data.order.videos) || (data.details && data.details.videos) || [];"); 
-        
-        js.append("    if (videos.length === 0) {");
-        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">Sniffer found data, but no video list was found in the object.</p>';");
-        js.append("      statusMsg.innerText = 'Sniffer Success - Videos Array Missing.';");
-        js.append("      return;");
+        js.append("      return null;");
         js.append("    }");
         
-        js.append("    var html = '';");
-        js.append("    var videoCount = 0;");
+        js.append("    function renderSelector(data) {");
+        js.append("      var videos = data.videos || (data.order && data.order.videos) || (data.details && data.details.videos) || [];"); 
         
-        js.append("    videos.forEach(function(video, index) {");
-        js.append("      var cleanTitle = video.title || 'Untitled Video ' + (index + 1);");
-        js.append("      var status = video.status === 'accepted' ? 'READY' : (video.status === 'in_review' ? 'IN REVIEW' : 'SCHEDULED');");
-        
-        js.append("      if (video.status === 'accepted') {");
-        js.append("        videoCount++;");
-        js.append("        var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
-        js.append("        html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + ' (' + status + ')' + '</button>';");
+        js.append("      if (videos.length === 0) {");
+        js.append("        listContainer.innerHTML = '<p style=\"color:#f00;\">Sniffer found data, but no video list was found in the object.</p>';");
+        js.append("        statusMsg.innerText = 'Sniffer Success - Videos Array Missing.';");
+        js.append("        return;");
         js.append("      }");
-        js.append("    });");
+        
+        js.append("      var html = '';");
+        js.append("      var videoCount = 0;");
+        
+        js.append("      videos.forEach(function(video, index) {");
+        js.append("        var cleanTitle = video.title || 'Untitled Video ' + (index + 1);");
+        js.append("        var status = video.status === 'accepted' ? 'READY' : (video.status === 'in_review' ? 'IN REVIEW' : 'SCHEDULED');");
+        
+        js.append("        if (video.status === 'accepted') {");
+        js.append("          videoCount++;");
+        js.append("          var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
+        js.append("          html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + ' (' + status + ')' + '</button>';");
+        js.append("        }");
+        js.append("      });");
 
-        js.append("    if (videoCount > 0) {");
-        js.append("      listContainer.innerHTML = html;");
-        js.append("      statusMsg.innerText = 'Sniffer Success! Select Mission:';");
-        js.append("    } else {");
-        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check \\\"Videos In Review\\\" status.</p>';");
-        js.append("      statusMsg.innerText = 'Sniffer Success - No Ready Videos.';");
-        js.append("    }");
-        js.append("  }"); // End renderSelector function
+        js.append("      if (videoCount > 0) {");
+        js.append("        listContainer.innerHTML = html;");
+        js.append("        statusMsg.innerText = 'Sniffer Success! Select Mission:';");
+        js.append("      } else {");
+        js.append("        listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check \\\"Videos In Review\\\" status.</p>';");
+        js.append("        statusMsg.innerText = 'Sniffer Success - No Ready Videos.';");
+        js.append("      }");
+        js.append("    }"); // End renderSelector function
 
         // --- Execute Polling with Delay ---
-        js.append("  setTimeout(function() {"); // Delay the entire poller by 100ms
         js.append("    var poller = setInterval(function() {");
         js.append("      attempts++;");
         js.append("      var videoData = sniffStorage();");
@@ -347,7 +348,11 @@ public class MainActivity extends Activity {
         js.append("        setTimeout(function() { window.location.reload(); }, 500);"); // Force reload
         js.append("      }");
         js.append("    }, 1000);");
-        js.append("  }, 100);"); // Initial delay
+        
+        js.append("  }"); // End executeSniffer
+
+        // Call the function on a small delay to ensure the DOM is fully ready
+        js.append("  setTimeout(executeSniffer, 100);"); 
         
         js.append("})()");
         view.loadUrl(js.toString());
