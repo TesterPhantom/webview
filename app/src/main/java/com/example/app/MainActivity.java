@@ -175,7 +175,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: VIDEO SELECTOR SCREEN (Adaptive Poller)
+    // MODULE 2: VIDEO SELECTOR SCREEN (Adaptive Poller + Direct Container Anchor)
     // =========================================================
     private void injectVideoSelector(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -209,11 +209,15 @@ public class MainActivity extends Activity {
         js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
         js.append("  var attempts = 0;");
         js.append("  var maxAttempts = 10;"); 
+        
+        // This is the outer container for all the upload sections found in your HTML dump:
+        js.append("  var videosSection = document.querySelector('div.space-y-8');"); 
+        
         js.append("  var poller = setInterval(function() {");
         js.append("    attempts++;");
         
-        // **GOLD STANDARD SELECTOR:** Finds the card container based on confirmed class.
-        js.append("    var videoCards = document.querySelectorAll('div[class*=\"rounded-lg shadow-sm border-gray-200\"]:not([class*=\"border-green\"])');"); 
+        // **GOLD STANDARD SELECTOR:** Search only within the videosSection for the card container.
+        js.append("    var videoCards = videosSection ? videosSection.querySelectorAll('div[class*=\"rounded-lg shadow-sm border-gray-200\"]:not([class*=\"border-green\"])') : [];"); 
         
         js.append("    if (videoCards.length > 0) {");
         js.append("      clearInterval(poller);");
@@ -240,7 +244,8 @@ public class MainActivity extends Activity {
         js.append("      });");
 
         js.append("      if(videoCount > 0) { listContainer.innerHTML = html; }");
-        js.append("      else { listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check \"Videos In Review\" section.</p>'; }");
+        // SYNTAX FIX IS HERE: Escaping the quotes correctly.
+        js.append("      else { listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check \\\"Videos In Review\\\" section.</p>'; }");
 
         js.append("    } else if (attempts >= maxAttempts) {");
         js.append("      clearInterval(poller);");
