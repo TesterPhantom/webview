@@ -54,25 +54,21 @@ public class MainActivity extends Activity {
 
     // --- CENTRAL ROUTER LOGIC ---
     private void handleUrl(WebView view, String url) {
-        // PRIORITY 1: MISSION COCKPIT (Specific Video Selected - Has #video=X)
         if (url.contains("#video=")) {
             injectMissionCockpit(view);
             return;
         }
         
-        // PRIORITY 2: VIDEO SELECTOR SCREEN (On Order Details Page - Needs Selection)
         if (url.contains("order") || url.contains("details") || url.contains("job")) {
             injectVideoSelector(view);
             return;
         }
 
-        // PRIORITY 3: COMMAND DECK (Calendar)
         if (url.contains("/calendar")) {
             injectDashboardUI(view);
             return;
         }
 
-        // PRIORITY 4: AUTO-PILOT
         if (url.contains("account-manager") && !url.contains("login")) {
             view.loadUrl("https://app.tokportal.com/account-manager/calendar");
         }
@@ -179,7 +175,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: VIDEO SELECTOR SCREEN (Target Acquisition)
+    // MODULE 2: VIDEO SELECTOR SCREEN (Text Anchor Scraper)
     // =========================================================
     private void injectVideoSelector(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -206,34 +202,38 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
-        // --- SCRAPER LOGIC: Find all video cards based on 'Upload this video' button anchor ---
+        // --- SCRAPER LOGIC: Find all cards by anchoring to the unique "Upload" button text ---
         js.append("  var currentUrl = window.location.href.split('#')[0];");
         js.append("  var listContainer = document.getElementById('video-list');");
-        js.append("  var uploadButtons = document.querySelectorAll('button');"); // Search for all buttons
+        js.append("  var buttons = document.getElementsByTagName('button');"); // Get all buttons (or a tags)
         
         js.append("  var html = '';");
         js.append("  var videoCount = 0;");
         js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
         
-        js.append("  uploadButtons.forEach(function(btn, index) {");
+        js.append("  for(var i = 0; i < buttons.length; i++) {");
+        js.append("    var btn = buttons[i];");
         js.append("    if (btn.innerText.includes('Upload this video')) {"); // Found an anchor button
         
-        // Traverse up to find the main card container (likely nearest parent with rounded corners/shadow)
-        js.append("      var card = btn.closest('.bg-white, .shadow-lg, div[style*=\"border-radius\"]');");
-        js.append("      if (card) {");
-        js.append("        var titleEl = card.querySelector('h3, h4, .font-bold');");
-        js.append("        var status = card.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
-        
-        js.append("        if (titleEl && titleEl.innerText.includes('Glippy')) {"); // Ensure it's a content card
-        js.append("          videoCount++;");
-        js.append("          var cleanTitle = titleEl.innerText.trim();");
-        // Pass the card index (i.e., the specific video) and username to the next stage
-        js.append("          var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;");
-        js.append("          html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + '<span class=\"sel-status\">' + status + '</span></button>';");
-        js.append("        }");
+        // Traverse up to find the element containing the title (usually h3/h4/bold element)
+        js.append("      var card = btn.parentElement;");
+        js.append("      var titleEl = null;");
+        js.append("      var status = card.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
+
+        // Safely search for the title text by looking at siblings/children
+        js.append("      var headers = card.querySelectorAll('h3, h4, .font-bold');");
+        js.append("      for(var j=0; j<headers.length; j++) {");
+        js.append("          if(headers[j].innerText.includes('Glippy')) { titleEl = headers[j]; break; }"); // Anchor to the username/title structure
+        js.append("      }");
+
+        js.append("      if (titleEl) {");
+        js.append("        videoCount++;");
+        js.append("        var cleanTitle = titleEl.innerText.trim();");
+        js.append("        var buttonHref = currentUrl + '#video=' + i + '&user=' + userName;"); // Use 'i' as the index/ID
+        js.append("        html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + '<span class=\"sel-status\">' + status + '</span></button>';");
         js.append("      }");
         js.append("    }");
-        js.append("  });");
+        js.append("  }"); // End of button loop
 
         js.append("  if(videoCount > 0) { listContainer.innerHTML = html; }");
         js.append("  else { listContainer.innerHTML = '<p style=\"color:#f00;\">No video cards detected. Try refreshing.</p>'; }");
@@ -323,18 +323,15 @@ public class MainActivity extends Activity {
         // --- DATA HARVEST (Baton Pass + Targeted Caption Scrape) ---
         js.append("  setTimeout(function() {");
         
-        // 1. GET USER FROM URL HASH
         js.append("    if(window.location.hash.includes('user=')) {");
         js.append("       var user = decodeURIComponent(window.location.hash.split('user=')[1].split('&')[0]);");
         js.append("       document.getElementById('cp-user').innerText = user;");
         js.append("    }");
         
-        // 2. SCRAPE CAPTION (Look relative to the Upload Button)
         js.append("    var captionFound = false;");
         js.append("    var possibleCaptions = document.querySelectorAll('p, div, span, strong');"); 
         js.append("    for(var i=0; i<possibleCaptions.length; i++) {");
         js.append("        var txt = possibleCaptions[i].innerText.trim();");
-        // We use the specific content anchor and filter for length/symbols
         js.append("        if(txt.length > 50 && (txt.includes('#') || txt.includes('support')) && !txt.includes('Target period')) {");
         js.append("           document.getElementById('cp-caption').innerText = txt; captionFound = true; break;");
         js.append("        }");
