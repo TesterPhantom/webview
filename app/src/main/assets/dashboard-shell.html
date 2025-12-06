@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TokPortal - Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* --- 1. THEME VARIABLES (The DNA) --- */
+        :root {
+            /* Colors */
+            --bg-deep: #050507;       /* The Void */
+            --bg-panel: #13131f;      /* Panel Background */
+            --primary: #00f3ff;       /* Neon Cyan */
+            --secondary: #bd00ff;     /* Hot Magenta */
+            --text-main: #ffffff;
+            --text-muted: #8b9bb4;
+            
+            /* Effects */
+            --glass: rgba(19, 19, 31, 0.7);
+            --glow-primary: 0 0 15px rgba(0, 243, 255, 0.3);
+            --glow-text: 0 0 10px rgba(0, 243, 255, 0.5);
+            --border-glow: 1px solid rgba(0, 243, 255, 0.2);
+            
+            /* Sizing */
+            --sidebar-width: 260px;
+        }
+
+        /* --- 2. GLOBAL RESET --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            overflow: hidden; /* No scroll on body, scroll inside panels */
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(189, 0, 255, 0.05) 0%, transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.05) 0%, transparent 25%);
+        }
+
+        /* --- 3. LAYOUT GRID --- */
+        .app-container {
+            display: grid;
+            grid-template-columns: var(--sidebar-width) 1fr; /* Sidebar | Content */
+            height: 100vh;
+        }
+
+        /* --- 4. SIDEBAR (Command Rail) --- */
+        .sidebar {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            padding: 2rem 1.5rem;
+            z-index: 10;
+        }
+
+        .logo-area {
+            margin-bottom: 3rem;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            color: var(--primary);
+            text-shadow: var(--glow-text);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-menu {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            border: 1px solid transparent;
+        }
+
+        /* Hover & Active States */
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-item.active {
+            background: rgba(0, 243, 255, 0.1);
+            color: var(--primary);
+            border-color: rgba(0, 243, 255, 0.3);
+            box-shadow: var(--glow-primary);
+        }
+
+        .nav-item i { width: 20px; text-align: center; }
+
+        /* --- 5. MAIN CONTENT AREA --- */
+        .main-content {
+            padding: 2rem;
+            overflow-y: auto; /* Scroll ONLY the content, not the sidebar */
+            position: relative;
+        }
+
+        /* Header within content */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            color: white;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(189, 0, 255, 0.4);
+        }
+
+        /* --- 6. PLACEHOLDER CARD (For testing) --- */
+        .content-placeholder {
+            background: var(--bg-panel);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            border-left: 3px solid var(--primary); /* Cyberpunk accent */
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="logo-area">
+                <i class="fa-solid fa-bolt"></i> TOKPORTAL
+            </div>
+
+            <ul class="nav-menu">
+                <li class="nav-item active">
+                    <i class="fa-solid fa-chart-line"></i> Dashboard
+                </li>
+                <li class="nav-item">
+                    <i class="fa-solid fa-calendar-check"></i> Scheduler
+                </li>
+                <li class="nav-item">
+                    <i class="fa-solid fa-users"></i> Accounts
+                </li>
+                <li class="nav-item">
+                    <i class="fa-solid fa-gear"></i> Settings
+                </li>
+            </ul>
+        </aside>
+
+        <main class="main-content">
+            <div class="top-bar">
+                <h1 class="page-title">Dashboard Overview</h1>
+                
+                <div class="user-profile">
+                    <span style="color: var(--text-muted); font-size: 0.9rem;">Welcome, Stephen</span>
+                    <div class="avatar">S</div>
+                </div>
+            </div>
+
+            <div class="content-placeholder">
+                <p> // PAGE CONTENT WILL LOAD HERE //</p>
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>
