@@ -26,37 +26,32 @@ public class MainActivity extends Activity {
         mWebView = findViewById(R.id.activity_main_webview);
         WebSettings webSettings = mWebView.getSettings();
 
-        // 1. ENABLE FEATURES
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setDatabaseEnabled(true);
 
-        // 2. LONG TERM MEMORY
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(mWebView, true);
 
-        // Allow JS to copy text
         mWebView.addJavascriptInterface(new WebAppInterface(this), "Android");
 
-        // 3. THE NAVIGATOR
         mWebView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
                 
-                // A. MISSION COCKPIT (Priority 1)
-                // If we land on an order details page
+                // 1. MISSION COCKPIT (Priority)
                 if (url.contains("order") || url.contains("details") || url.contains("job")) {
                     injectMissionCockpit(view);
                     return;
                 }
 
-                // B. COMMAND DECK (Priority 2)
+                // 2. COMMAND DECK
                 if (url.contains("/calendar")) {
                     injectDashboardUI(view);
                     return;
                 }
 
-                // C. AUTO-PILOT (Redirect from Home to Calendar)
+                // 3. AUTO-PILOT
                 if (url.contains("account-manager") && !url.contains("login")) {
                     view.loadUrl("https://app.tokportal.com/account-manager/calendar");
                 }
@@ -78,22 +73,18 @@ public class MainActivity extends Activity {
         }
     }
 
-    // =========================================================
-    // MODULE 1: THE COMMAND DECK (Restored the "Perfect" Scraper)
-    // =========================================================
+    // --- MODULE 1: COMMAND DECK ---
     private void injectDashboardUI(WebView view) {
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
         js.append("  if(document.getElementById('cyber-root')) return;");
         
-        // CSS STYLES
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
         js.append("    body > *:not(#cyber-root) { display: none !important; }"); 
         js.append("    #cyber-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; display:flex; flex-direction:column; }");
-        
         js.append("    .top-bar { padding:15px; background:rgba(19,19,31,0.95); border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center; }");
         js.append("    .content-area { flex:1; overflow-y:auto; padding:15px; }");
         js.append("    .card { background:#13131f; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; margin-bottom:8px; display:flex; flex-direction:column; }");
@@ -112,7 +103,6 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
-        // HTML
         js.append("  var root = document.createElement('div');");
         js.append("  root.id = 'cyber-root';");
         js.append("  root.innerHTML = `");
@@ -129,12 +119,9 @@ public class MainActivity extends Activity {
         js.append("  window.switchTab = function(id, el) { var views = document.querySelectorAll('.view-section'); for(var i=0; i<views.length; i++) { views[i].classList.remove('active'); } document.getElementById('view-'+id).classList.add('active'); var icons = document.querySelectorAll('.tab-icon'); for(var j=0; j<icons.length; j++) { icons[j].classList.remove('active'); } el.classList.add('active'); };");
         js.append("  window.toggleSection = function(id, header) { var content = document.getElementById(id); if(content.classList.contains('open')) { content.classList.remove('open'); header.querySelector('i').className = 'fa-solid fa-chevron-down'; } else { content.classList.add('open'); header.querySelector('i').className = 'fa-solid fa-chevron-up'; } };");
 
-        // --- THE PERFECT SCRAPER (RESTORED) ---
         js.append("  window.scanData = function() {");
         js.append("    var count = 0; var actionHTML = ''; var warmHTML = ''; var doneHTML = '';"); 
-        // We use the selector that WORKED previously (found 31 items)
         js.append("    var rows = document.querySelectorAll('.grid.grid-cols-8.border-b');");
-        
         js.append("    if(rows.length > 0) {");
         js.append("      var day = new Date().getDay(); var col = (day===0)?7:day;");
         js.append("      for(var i=0; i<rows.length; i++) {");
@@ -143,15 +130,11 @@ public class MainActivity extends Activity {
         js.append("        var fullRow = row.innerText.toLowerCase();");
         js.append("        var userEl = row.querySelector('.text-gray-900.truncate');");
         js.append("        var username = userEl ? userEl.innerText : 'Unknown';");
-        
-        // FIND LINK: We look for the <a> tag inside THIS row
-        js.append("        var linkEl = row.querySelector('a');");
-        js.append("        var href = linkEl ? linkEl.href : '';");
+        js.append("        var linkEl = row.querySelector('a'); var href = linkEl ? linkEl.href : '';");
         
         js.append("        if(txt.indexOf('scheduled') !== -1) {");
         js.append("          count++; actionHTML += \"<div class='card' style='border-left:3px solid #00f3ff;'>\";");
         js.append("          actionHTML += \"<div class='card-row'><div style='font-weight:bold; color:white; font-size:14px;'>\" + username + \"</div><div style='font-size:10px; color:#00f3ff;'>READY</div></div>\";");
-        // BUTTON LOGIC
         js.append("          if(href) { actionHTML += \"<button class='btn' onclick='location.href=\\\"\" + href + \"\\\"'>OPEN COCKPIT</button>\"; }");
         js.append("          else { actionHTML += \"<button class='btn' style='border-color:#666; color:#666;'>LINK NOT FOUND</button>\"; }");
         js.append("          actionHTML += \"</div>\";");
@@ -175,7 +158,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: MISSION COCKPIT (With Theme Virus)
+    // MODULE 2: MISSION COCKPIT (The "Smart Filter" Update)
     // =========================================================
     private void injectMissionCockpit(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -196,7 +179,6 @@ public class MainActivity extends Activity {
         js.append("    .data-val { color:white; background:#111; padding:6px; border:1px solid #333; font-size:14px; flex:1; margin:0 10px; overflow:hidden; text-overflow:ellipsis; }");
         js.append("    .btn-copy { background:#00f3ff; color:black; border:none; padding:4px 8px; font-weight:bold; cursor:pointer; font-size:10px; border-radius:2px; }");
         js.append("    .action-btn { background:rgba(0,243,255,0.1); border:1px solid #00f3ff; color:#00f3ff; padding:15px; margin-bottom:10px; text-align:center; cursor:pointer; font-weight:bold; width:100%; display:block; }");
-        // THEME VIRUS CSS
         js.append("    div[role='dialog'], .modal, .popup { background-color: #13131f !important; color: white !important; border: 1px solid #00f3ff !important; }");
         js.append("    input, textarea, select { background: #050507 !important; color: white !important; border: 1px solid #333 !important; }");
         js.append("    #return-btn { position:fixed; bottom:20px; left:20px; z-index:999999; background:rgba(0,0,0,0.8); border:1px solid #00f3ff; color:#00f3ff; padding:10px; display:none; }");
@@ -208,7 +190,7 @@ public class MainActivity extends Activity {
         js.append("  root.id = 'cockpit-root';");
         js.append("  root.innerHTML = `");
         js.append("    <div class='cp-header'><div class='cp-title'>MISSION COCKPIT</div><div style='color:#00ff9d'>SECURE</div></div>");
-        js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// CREDENTIALS</div><div class='data-row'><span>USER</span><span class='data-val' id='cp-user'>Scanning...</span><button class='btn-copy' onclick='copyText(\"cp-user\")'>COPY</button></div><div class='data-row'><span>PASS</span><span class='data-val' id='cp-pass'>********</span><button class='btn-copy' onclick='copyText(\"cp-pass\")'>COPY</button></div></div>");
+        js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// CREDENTIALS</div><div class='data-row'><span>USER</span><span class='data-val' id='cp-user'>Scanning...</span><button class='btn-copy' onclick='copyText(\"cp-user\")'>COPY</button></div><div class='data-row'><span>PASS</span><span class='data-val' id='cp-pass'>See Account Page</span></div></div>");
         js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// ACTIONS</div><button class='action-btn' id='dl-btn' onclick='triggerRealUpload()'>1. INITIALIZE UPLOAD</button><div class='cp-panel-title' style='margin-top:10px;'>METADATA</div><div class='data-row'><span class='data-val' id='cp-caption' style='height:40px;'>Scanning...</span><button class='btn-copy' onclick='copyText(\"cp-caption\")'>COPY</button></div></div>");
         js.append("    <button class='action-btn' style='border-color:#ff0050; color:#ff0050; margin-top:auto;' onclick='history.back()'>ABORT MISSION</button>");
         js.append("  `;");
@@ -223,13 +205,35 @@ public class MainActivity extends Activity {
         js.append("    for(var i=0; i<buttons.length; i++) { if(buttons[i].innerText.toLowerCase().includes('upload this video')) { buttons[i].click(); found = true; break; } }");
         js.append("    if(!found) { var links = document.getElementsByTagName('a'); for(var j=0; j<links.length; j++) { if(links[j].innerText.toLowerCase().includes('upload')) { links[j].click(); found=true; break; } } }");
         js.append("    if(found) { document.getElementById('cockpit-root').style.display = 'none'; document.getElementById('return-btn').style.display = 'block'; }");
-        js.append("    else { alert('Target Not Found. Please scroll down.'); }");
+        js.append("    else { alert('Target Not Found. Please scroll page.'); }");
         js.append("  };");
 
-        js.append("  setTimeout(function() {");
-        js.append("    var userEl = document.querySelector('h1') || document.querySelector('.text-xl'); if(userEl) document.getElementById('cp-user').innerText = userEl.innerText;");
-        js.append("    var captionEl = document.querySelector('textarea'); if(captionEl) document.getElementById('cp-caption').innerText = captionEl.value || captionEl.innerText;");
-        js.append("  }, 1500);");
+        // --- NEW: THE SMART FILTER SCRAPER ---
+        js.append("  var attempts = 0;");
+        js.append("  var scraper = setInterval(function() {");
+        js.append("    attempts++;");
+        
+        // 1. FIND USER: Look for bold text, filtering out generic system words
+        js.append("    var candidates = document.querySelectorAll('h1, h2, .text-xl, .font-bold, strong');");
+        js.append("    for(var i=0; i<candidates.length; i++) {");
+        js.append("       var txt = candidates[i].innerText.trim();");
+        js.append("       if(txt.length > 3 && !txt.includes('Account Manager') && !txt.includes('TokPortal') && !txt.includes('Upload') && !txt.includes('Status')) {");
+        js.append("          document.getElementById('cp-user').innerText = txt; break;");
+        js.append("       }");
+        js.append("    }");
+
+        // 2. FIND CAPTION: Look for 'Description to use'
+        js.append("    var allDivs = document.getElementsByTagName('div');");
+        js.append("    for(var j=0; j<allDivs.length; j++) {");
+        js.append("       if(allDivs[j].innerText.includes('Description to use:')) {");
+        // Look for the text box nearby
+        js.append("          var sib = allDivs[j].nextElementSibling || allDivs[j].querySelector('p, div, span');");
+        js.append("          if(sib && sib.innerText.length > 2) { document.getElementById('cp-caption').innerText = sib.innerText; break; }");
+        js.append("       }");
+        js.append("    }");
+        
+        js.append("    if(attempts > 5) clearInterval(scraper);");
+        js.append("  }, 1000);");
 
         js.append("})()");
         view.loadUrl(js.toString());
