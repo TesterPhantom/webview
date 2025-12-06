@@ -66,7 +66,7 @@ public class MainActivity extends Activity {
         }
         
         if (url.contains("order") || url.contains("details") || url.contains("job")) {
-            // Direct call to the Sniffer, which handles data acquisition internally
+            // Call the Sniffer directly, which now handles timing internally
             injectStorageSniffer(view); 
             return;
         }
@@ -237,7 +237,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: LOCAL STORAGE SNIFFER & RENDERER
+    // MODULE 2: LOCAL STORAGE SNIFFER & RENDERER (FINALIZED)
     // =========================================================
     private void injectStorageSniffer(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -275,32 +275,36 @@ public class MainActivity extends Activity {
         js.append("  var attempts = 0;");
         js.append("  var maxAttempts = 10;"); 
         
+        // Final selector to grab the current order ID from the URL for later data lookup
+        js.append("  var path = window.location.pathname;");
+        js.append("  var orderIdMatch = path.match(/orders\\/([a-f0-9-]+)/i);");
+        js.append("  var currentOrderId = orderIdMatch ? orderIdMatch[1] : null;");
+
+
         js.append("  function sniffStorage() {");
-        js.append("    // Search Local Storage");
-        js.append("    for (var i = 0; i < localStorage.length; i++) {");
-        js.append("      var key = localStorage.key(i);");
-        js.append("      var value = localStorage.getItem(key);");
-        js.append("      if (value && value.includes('\"videos\"') && value.includes('\"title\"') && value.includes('\"videosToUpload\"')) {");
-        js.append("        try { return JSON.parse(value); } catch(e) {}");
-        js.append("      }");
-        js.append("    }");
-        js.append("    // Search Session Storage (if the data is volatile)");
-        js.append("    for (var i = 0; i < sessionStorage.length; i++) {");
-        js.append("      var key = sessionStorage.key(i);");
-        js.append("      var value = sessionStorage.getItem(key);");
-        js.append("      if (value && value.includes('\"videos\"') && value.includes('\"title\"') && value.includes('\"videosToUpload\"')) {");
-        js.append("        try { return JSON.parse(value); } catch(e) {}");
+        js.append("    var targetKey = 'order-details-' + currentOrderId;"); // Attempt to build a common key
+        js.append("    var keysToSearch = [targetKey, 'persist:root', 'order', 'orders'];"); // Add common generic keys
+        
+        js.append("    for (const storageType of [localStorage, sessionStorage]) {");
+        js.append("      for (const key of keysToSearch) {");
+        js.append("        var value = storageType.getItem(key);");
+        js.append("        if (value) {");
+        js.append("          // Check for unique content: includes 'videos' and 'title' (in case key is dynamic)");
+        js.append("          if (value.includes('\"videos\"') && value.includes('\"title\"')) {");
+        js.append("            try { return JSON.parse(value); } catch(e) {}");
+        js.append("          }");
+        js.append("        }");
         js.append("      }");
         js.append("    }");
         js.append("    return null;");
         js.append("  }");
         
         js.append("  function renderSelector(data) {");
-        js.append("    // Data structure check (adjust based on the JSON you expect)");
-        js.append("    var videos = data.videos || (data.order && data.order.videos) || [];"); 
+        js.append("    var videos = data.videos || (data.order && data.order.videos) || (data.details && data.details.videos) || [];"); 
+        
         js.append("    if (videos.length === 0) {");
-        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">Sniffer found data, but no videos array.</p>';");
-        js.append("      statusMsg.innerText = 'Sniffer Found Data - Missing Videos.';");
+        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">Sniffer found data, but no video list was found in the object.</p>';");
+        js.append("      statusMsg.innerText = 'Sniffer Success - Videos Array Missing.';");
         js.append("      return;");
         js.append("    }");
         
@@ -308,7 +312,7 @@ public class MainActivity extends Activity {
         js.append("    var videoCount = 0;");
         
         js.append("    videos.forEach(function(video, index) {");
-        js.append("      var cleanTitle = video.title || 'Untitled Video';");
+        js.append("      var cleanTitle = video.title || 'Untitled Video ' + (index + 1);");
         js.append("      var status = video.status === 'accepted' ? 'READY' : (video.status === 'in_review' ? 'IN REVIEW' : 'SCHEDULED');");
         
         js.append("      if (video.status === 'accepted') {");
@@ -327,20 +331,23 @@ public class MainActivity extends Activity {
         js.append("    }");
         js.append("  }"); // End renderSelector function
 
-        // --- Execute Polling ---
-        js.append("  var poller = setInterval(function() {");
-        js.append("    attempts++;");
-        js.append("    var videoData = sniffStorage();");
+        // --- Execute Polling with Delay ---
+        js.append("  setTimeout(function() {"); // Delay the entire poller by 100ms
+        js.append("    var poller = setInterval(function() {");
+        js.append("      attempts++;");
+        js.append("      var videoData = sniffStorage();");
         
-        js.append("    if (videoData) {");
-        js.append("      clearInterval(poller);");
-        js.append("      renderSelector(videoData);");
-        js.append("    } else if (attempts >= maxAttempts) {");
-        js.append("      clearInterval(poller);");
-        js.append("      statusMsg.innerText = 'FATAL SNIFFER ERROR: Data not found in local storage after 10s.';");
-        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">Please ensure the Order Details page has fully loaded and refresh.</p>';");
-        js.append("    }");
-        js.append("  }, 1000);"); // Check every 1 second
+        js.append("      if (videoData) {");
+        js.append("        clearInterval(poller);");
+        js.append("        renderSelector(videoData);");
+        js.append("      } else if (attempts >= maxAttempts) {");
+        js.append("        clearInterval(poller);");
+        js.append("        statusMsg.innerText = 'FATAL SNIFFER ERROR: Data not found after 10s.';");
+        js.append("        listContainer.innerHTML = '<p style=\"color:#f00;\">Reloading page to force data fetch...</p>';");
+        js.append("        setTimeout(function() { window.location.reload(); }, 500);"); // Force reload
+        js.append("      }");
+        js.append("    }, 1000);");
+        js.append("  }, 100);"); // Initial delay
         
         js.append("})()");
         view.loadUrl(js.toString());
