@@ -67,7 +67,7 @@ public class MainActivity extends Activity {
         }
         
         if (url.contains("order") || url.contains("details") || url.contains("job")) {
-            // Check if Order ID is present in URL
+            // Extract Order ID and pass it to the API-Driven Module
             String orderId = getOrderIdFromUrl(url);
             if (orderId != null) {
                 injectApiSelector(view, orderId);
@@ -91,24 +91,22 @@ public class MainActivity extends Activity {
     // --- UTILITY: Extract Order ID from the current URL ---
     private String getOrderIdFromUrl(String url) {
         try {
-            // Expecting format like: /orders/ORDER_ID
             int index = url.indexOf("/orders/");
             if (index != -1) {
                 String potentialId = url.substring(index + "/orders/".length());
-                // ID should end at the next non-ID character (e.g., # or ?)
                 int end = potentialId.indexOf('#');
                 if (end == -1) end = potentialId.indexOf('?');
                 if (end == -1) end = potentialId.length();
                 
                 String orderId = potentialId.substring(0, end);
                 
-                // Validate if it looks like a GUID (basic check for length/dashes)
+                // Basic validation for GUID format
                 if (orderId.length() >= 20 && orderId.contains("-")) {
                     return orderId;
                 }
             }
         } catch (Exception e) {
-            // Error handling if URL structure is unexpected
+            // Silence URL parsing exceptions
         }
         return null;
     }
@@ -246,7 +244,6 @@ public class MainActivity extends Activity {
         js.append("  document.body.appendChild(root);");
         
         // --- API FETCH LOGIC ---
-        // Uses the orderId extracted in Java to construct the stable API endpoint
         js.append("  var apiEndpoint = 'https://app.tokportal.com/api/manager/orders/" + orderId + "/details';");
         js.append("  var listContainer = document.getElementById('video-list');");
         js.append("  var statusMsg = document.getElementById('status-msg');");
@@ -265,7 +262,6 @@ public class MainActivity extends Activity {
         
         // Loop through videos found in the API data
         js.append("    data.videos.forEach(function(video, index) {");
-        js.append("      // Use API properties for title and status");
         js.append("      var cleanTitle = video.title || 'Untitled Video';");
         js.append("      var status = video.status === 'accepted' ? 'READY' : (video.status === 'in_review' ? 'IN REVIEW' : 'SCHEDULED');");
         
@@ -282,7 +278,8 @@ public class MainActivity extends Activity {
         js.append("      listContainer.innerHTML = html;");
         js.append("      statusMsg.innerText = 'Select Video Mission:';");
         js.append("    } else {");
-        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check In Review status.</p>';");
+        // Syntax fix applied here: using escaped quotes inside the string
+        js.append("      listContainer.innerHTML = '<p style=\"color:#f00;\">No videos available to upload. Check \\\"Videos In Review\\\" status.</p>';");
         js.append("      statusMsg.innerText = 'API Fetch Complete - No Ready Videos.';");
         js.append("    }");
         js.append("  }"); // End renderSelector function
@@ -310,10 +307,9 @@ public class MainActivity extends Activity {
 
     // =========================================================
     // MODULE 3: MISSION COCKPIT (Final Aggregation Screen)
-    // *********************************************************
-    // NOTE: This module remains based on HTML Scrape as a fallback/secondary info source, 
-    // but the critical data flow (which video to click) now originates from the API fetch.
-    // *********************************************************
+    // =========================================================
+    // Note: This module is still primarily based on client-side interactions (like button clicks)
+    // and remains mostly untouched from previous working version.
     // =========================================================
     private void injectMissionCockpit(WebView view) {
         StringBuilder js = new StringBuilder();
