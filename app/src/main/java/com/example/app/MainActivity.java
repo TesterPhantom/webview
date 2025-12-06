@@ -26,18 +26,22 @@ public class MainActivity extends Activity {
         mWebView = findViewById(R.id.activity_main_webview);
         WebSettings webSettings = mWebView.getSettings();
 
+        // 1. ENABLE FEATURES
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setDatabaseEnabled(true);
 
+        // 2. LONG TERM MEMORY
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(mWebView, true);
 
+        // Allow JS to copy text
         mWebView.addJavascriptInterface(new WebAppInterface(this), "Android");
 
+        // 3. THE NAVIGATOR (Handles all URL changes, including SPAs)
         mWebView.setWebViewClient(new WebViewClient() {
             
-            // 1. STANDARD LOAD (First Launch / Refresh)
+            // 1. STANDARD LOAD
             @Override
             public void onPageFinished(WebView view, String url) {
                 handleUrl(view, url);
@@ -54,22 +58,27 @@ public class MainActivity extends Activity {
         mWebView.loadUrl("https://app.tokportal.com/account-manager/calendar");
     }
 
-    // --- CENTRAL ROUTER LOGIC ---
+    // --- CENTRAL ROUTER LOGIC (Navigation Watchdog) ---
     private void handleUrl(WebView view, String url) {
-        // PRIORITY 1: MISSION COCKPIT
-        // Checks for 'order', 'details', 'job' OR the #user hash we added
-        if (url.contains("order") || url.contains("details") || url.contains("job") || url.contains("#user=")) {
+        // PRIORITY 1: MISSION COCKPIT (Specific Video Selected - Has #video=X)
+        if (url.contains("#video=")) {
             injectMissionCockpit(view);
             return;
         }
+        
+        // PRIORITY 2: VIDEO SELECTOR SCREEN (On Order Details Page - Needs Selection)
+        if (url.contains("order") || url.contains("details") || url.contains("job")) {
+            injectVideoSelector(view);
+            return;
+        }
 
-        // PRIORITY 2: COMMAND DECK (Calendar)
+        // PRIORITY 3: COMMAND DECK (Calendar)
         if (url.contains("/calendar")) {
             injectDashboardUI(view);
             return;
         }
 
-        // PRIORITY 3: AUTO-PILOT
+        // PRIORITY 4: AUTO-PILOT
         if (url.contains("account-manager") && !url.contains("login")) {
             view.loadUrl("https://app.tokportal.com/account-manager/calendar");
         }
@@ -87,11 +96,12 @@ public class MainActivity extends Activity {
         }
     }
 
-    // --- MODULE 1: COMMAND DECK (The Perfect List) ---
+    // =========================================================
+    // MODULE 1: COMMAND DECK (The Perfect List + Baton Pass)
+    // =========================================================
     private void injectDashboardUI(WebView view) {
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
-        // CLEANUP: Remove any stuck cockpit if we went back
         js.append("  var oldCp = document.getElementById('cockpit-root'); if(oldCp) oldCp.remove();");
         js.append("  if(document.getElementById('cyber-root')) return;");
         
@@ -148,12 +158,12 @@ public class MainActivity extends Activity {
         js.append("        var username = userEl ? userEl.innerText : 'Unknown';");
         js.append("        var linkEl = row.querySelector('a'); var href = linkEl ? linkEl.href : '';");
         
-        // Pass username in URL Hash
         js.append("        var cleanName = encodeURIComponent(username);");
         
         js.append("        if(txt.indexOf('scheduled') !== -1) {");
         js.append("          count++; actionHTML += \"<div class='card' style='border-left:3px solid #00f3ff;'>\";");
         js.append("          actionHTML += \"<div class='card-row'><div style='font-weight:bold; color:white; font-size:14px;'>\" + username + \"</div><div style='font-size:10px; color:#00f3ff;'>READY</div></div>\";");
+        // Navigation now goes to the Video Selector Screen
         js.append("          if(href) { actionHTML += \"<button class='btn' onclick='location.href=\\\"\" + href + \"#user=\" + cleanName + \"\\\"'>OPEN COCKPIT</button>\"; }");
         js.append("          else { actionHTML += \"<button class='btn' style='border-color:#666; color:#666;'>LINK NOT FOUND</button>\"; }");
         js.append("          actionHTML += \"</div>\";");
@@ -176,7 +186,61 @@ public class MainActivity extends Activity {
         view.loadUrl(js.toString());
     }
 
-    // --- MODULE 2: MISSION COCKPIT ---
+    // =========================================================
+    // MODULE 2: VIDEO SELECTOR SCREEN (NEW STEP)
+    // =========================================================
+    private void injectVideoSelector(WebView view) {
+        StringBuilder js = new StringBuilder();
+        js.append("javascript:(function() {");
+        js.append("  if(document.getElementById('selector-root')) return;");
+        
+        js.append("  var style = document.createElement('style');");
+        js.append("  style.innerHTML = `");
+        js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
+        js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); 
+        js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; padding:15px; overflow-y:auto; }");
+        js.append("    .sel-btn { background:#13131f; border:1px solid #00f3ff; color:#00f3ff; padding:15px; margin-bottom:10px; text-align:left; font-weight:bold; width:100%; display:block; }");
+        js.append("  `;");
+        js.append("  document.head.appendChild(style);");
+
+        js.append("  var root = document.createElement('div');");
+        js.append("  root.id = 'selector-root';");
+        js.append("  root.innerHTML = `");
+        js.append("    <h2 style='font-family:Orbitron; color:white; margin-bottom:20px;'>TARGET ACQUISITION</h2>");
+        js.append("    <p style='color:#ccc; margin-bottom:10px;'>Select the video mission to initiate cockpit view:</p>");
+        js.append("    <div id='video-list'>Scanning videos...</div>");
+        js.append("    <button class='sel-btn' style='margin-top:20px; border-color:#666; color:#666;' onclick='history.back()'>BACK TO CALENDAR</button>");
+        js.append("  `;");
+        js.append("  document.body.appendChild(root);");
+
+        // Scrape the live Order Page for available video cards
+        js.append("  var listContainer = document.getElementById('video-list');");
+        js.append("  var currentUrl = window.location.href.split('#')[0];");
+        js.append("  var cards = document.querySelectorAll('.bg-white, .shadow-lg');"); // Broad selector for video cards
+        js.append("  var html = '';");
+        js.append("  var videoCount = 0;");
+        
+        js.append("  cards.forEach(function(card, index) {");
+        js.append("    var title = card.querySelector('h3, h4, .font-bold');");
+        js.append("    var status = card.innerText.includes('READY') ? 'READY' : 'SCHEDULED';");
+        js.append("    if(title && title.innerText.length > 5) {");
+        js.append("      videoCount++;");
+        js.append("      var cleanTitle = title.innerText.replace(/\\s+\\(\\S+\\)/, '').trim();");
+        js.append("      var buttonHref = currentUrl + '#video=' + index + '&status=' + status + '&title=' + encodeURIComponent(cleanTitle);");
+        js.append("      html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + ' (' + status + ')</button>';");
+        js.append("    }");
+        js.append("  });");
+
+        js.append("  if(videoCount > 0) { listContainer.innerHTML = html; }");
+        js.append("  else { listContainer.innerHTML = '<p style=\"color:#f00;\">No video cards detected. Try refreshing.</p>'; }");
+
+        js.append("})()");
+        view.loadUrl(js.toString());
+    }
+
+    // =========================================================
+    // MODULE 3: MISSION COCKPIT (Final Aggregation Screen)
+    // =========================================================
     private void injectMissionCockpit(WebView view) {
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
@@ -186,7 +250,7 @@ public class MainActivity extends Activity {
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap');");
-        js.append("    body > *:not(#cockpit-root):not([class*='modal']):not([role='dialog']) { display: none !important; }");
+        js.append("    body > *:not(#cockpit-root) { display: none !important; }"); // Hides everything, including the selector
         js.append("    #cockpit-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:#00f3ff; z-index:99999; font-family:'Share Tech Mono', monospace; display:flex; flex-direction:column; padding:10px; overflow-y:auto; }");
         js.append("    .cp-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:15px; }");
         js.append("    .cp-title { font-family:'Orbitron'; font-size:20px; letter-spacing:2px; color:white; }");
@@ -196,8 +260,7 @@ public class MainActivity extends Activity {
         js.append("    .data-val { color:white; background:#111; padding:6px; border:1px solid #333; font-size:14px; flex:1; margin:0 10px; overflow:hidden; text-overflow:ellipsis; }");
         js.append("    .btn-copy { background:#00f3ff; color:black; border:none; padding:4px 8px; font-weight:bold; cursor:pointer; font-size:10px; border-radius:2px; }");
         js.append("    .action-btn { background:rgba(0,243,255,0.1); border:1px solid #00f3ff; color:#00f3ff; padding:15px; margin-bottom:10px; text-align:center; cursor:pointer; font-weight:bold; width:100%; display:block; }");
-        
-        // THEME VIRUS
+        // THEME VIRUS (For when the upload modal opens)
         js.append("    div[role='dialog'], .modal, .popup { background-color: #13131f !important; color: white !important; border: 1px solid #00f3ff !important; }");
         js.append("    h1, h2, h3, h4, strong { color: #00f3ff !important; }");
         js.append("    input, textarea, select { background: #050507 !important; color: white !important; border: 1px solid #333 !important; }");
@@ -210,9 +273,10 @@ public class MainActivity extends Activity {
         js.append("  root.id = 'cockpit-root';");
         js.append("  root.innerHTML = `");
         js.append("    <div class='cp-header'><div class='cp-title'>MISSION COCKPIT</div><div style='color:#00ff9d'>SECURE</div></div>");
-        js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// CREDENTIALS</div><div class='data-row'><span>USER</span><span class='data-val' id='cp-user'>Scanning...</span><button class='btn-copy' onclick='copyText(\"cp-user\")'>COPY</button></div><div class='data-row'><span>PASS</span><span class='data-val' id='cp-pass'>********</span><button class='btn-copy' onclick='copyText(\"cp-pass\")'>COPY</button></div></div>");
+        js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// CREDENTIALS</div><div class='data-row'><span>USER</span><span class='data-val' id='cp-user'>Detecting...</span><button class='btn-copy' onclick='copyText(\"cp-user\")'>COPY</button></div><div class='data-row'><span>PASS</span><span class='data-val' id='cp-pass'>********</span><button class='btn-copy' onclick='copyText(\"cp-pass\")'>COPY</button></div></div>");
         js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// ACTIONS</div><button class='action-btn' id='dl-btn' onclick='triggerRealUpload()'>1. INITIALIZE UPLOAD</button><div class='cp-panel-title' style='margin-top:10px;'>METADATA</div><div class='data-row'><span class='data-val' id='cp-caption' style='height:40px;'>Scanning...</span><button class='btn-copy' onclick='copyText(\"cp-caption\")'>COPY</button></div></div>");
-        js.append("    <button class='action-btn' style='border-color:#ff0050; color:#ff0050; margin-top:auto;' onclick='history.back()'>ABORT MISSION</button>");
+        js.append("    <div class='cp-panel'><div class='cp-panel-title'>/// DEPLOYMENT</div><input type='text' id='tiktok-link' placeholder='Paste TikTok URL here...' style='width:100%; background:#050507; border:1px solid #333; color:white; padding:10px; margin-bottom:10px; box-sizing:border-box;'><button class='action-btn' style='background:#00f3ff; color:black;' onclick='submitLink()'>2. CONFIRM UPLOAD</button></div>");
+        js.append("    <button class='action-btn' style='border-color:#ff0050; color:#ff0050; margin-top:20px;' onclick='history.back()'>ABORT MISSION</button>");
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
         
@@ -220,6 +284,23 @@ public class MainActivity extends Activity {
 
         js.append("  window.copyText = function(id) { Android.copyToClipboard(document.getElementById(id).innerText); };");
         
+        // --- DEPLOYMENT LOGIC (SUBMIT LINK) ---
+        js.append("  window.submitLink = function() {");
+        js.append("    var myLink = document.getElementById('tiktok-link').value;");
+        js.append("    if(myLink.length < 5) { alert('Please paste a URL first.'); return; }");
+        js.append("    var realInput = document.querySelector('input[name=\\'video_link\\']') || document.querySelector('input[placeholder*=\\'TikTok\\']');");
+        js.append("    if(realInput) {");
+        js.append("       realInput.value = myLink;");
+        js.append("       realInput.dispatchEvent(new Event('input', { bubbles: true }));");
+        js.append("       setTimeout(function() {");
+        js.append("         var submitBtns = document.querySelectorAll('button');");
+        js.append("         for(var k=0; k<submitBtns.length; k++) { if(submitBtns[k].innerText.includes('Submit')) { submitBtns[k].click(); break; } }");
+        js.append("         alert('Submission Sent!'); history.back();");
+        js.append("       }, 500);");
+        js.append("    } else { alert('Could not find submission form. Is the upload modal open?'); }");
+        js.append("  };");
+        
+        // --- AUTO-DRILL LOGIC (INITIALIZE UPLOAD) ---
         js.append("  window.triggerRealUpload = function() {");
         js.append("    var buttons = document.getElementsByTagName('button'); var found = false;");
         js.append("    for(var i=0; i<buttons.length; i++) { if(buttons[i].innerText.toLowerCase().includes('upload this video')) { buttons[i].click(); found = true; break; } }");
@@ -228,37 +309,40 @@ public class MainActivity extends Activity {
         js.append("    if(found) {");
         js.append("       document.getElementById('cockpit-root').style.display = 'none';");
         js.append("       document.getElementById('return-btn').style.display = 'block';");
+        // Bunker Buster: Click "I Understand" if it appears
         js.append("       setInterval(function() {");
         js.append("          var btns = document.getElementsByTagName('button');");
         js.append("          for(var k=0; k<btns.length; k++) { if(btns[k].innerText.includes('Understand')) { btns[k].click(); } }");
         js.append("       }, 500);");
-        js.append("    } else { alert('Target Not Found. Please scroll down.'); }");
+        js.append("    } else { alert('Upload Button Not Found. Check selector screen.'); }");
         js.append("  };");
 
+        // --- DATA HARVEST (Baton Pass + Targeted Caption Scrape) ---
         js.append("  setTimeout(function() {");
         
-        // 1. GET USER FROM URL HASH (The "Baton Pass")
+        // 1. GET USER FROM URL HASH
         js.append("    if(window.location.hash.includes('user=')) {");
-        js.append("       var user = decodeURIComponent(window.location.hash.split('user=')[1]);");
+        js.append("       var user = decodeURIComponent(window.location.hash.split('user=')[1].split('&')[0]);");
         js.append("       document.getElementById('cp-user').innerText = user;");
         js.append("    }");
         
-        // 2. SCRAPE CAPTION
+        // 2. SCRAPE CAPTION (Look relative to the Upload Button)
         js.append("    var buttons = document.getElementsByTagName('button');");
         js.append("    for(var i=0; i<buttons.length; i++) {");
         js.append("       if(buttons[i].innerText.toLowerCase().includes('upload this video')) {");
-        js.append("          var container = buttons[i].parentElement;");
+        js.append("          var container = buttons[i].closest('.bg-white, .shadow-lg');"); // Find nearest card container
         js.append("          if(container) {");
         js.append("             var text = container.innerText;");
         js.append("             var lines = text.split('\\n');");
         js.append("             for(var k=0; k<lines.length; k++) {");
-        js.append("                if(lines[k].length > 10 && !lines[k].includes('Upload') && !lines[k].includes('$')) {");
+        js.append("                if(lines[k].length > 10 && lines[k].includes('your health journey')) {"); // Use specific text as anchor
         js.append("                   document.getElementById('cp-caption').innerText = lines[k]; break;");
         js.append("                }");
         js.append("             }");
         js.append("          }");
         js.append("       }");
         js.append("    }");
+        
         js.append("  }, 1000);");
 
         js.append("})()");
