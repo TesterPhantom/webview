@@ -154,6 +154,7 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
+        // AUTO-FILL
         js.append("  setTimeout(function() {");
         js.append("    var userEl = document.querySelector('h1') || document.querySelector('.text-xl');");
         js.append("    if(userEl) document.getElementById('cp-user').innerText = userEl.innerText;");
