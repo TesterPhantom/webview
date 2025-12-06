@@ -26,28 +26,22 @@ public class MainActivity extends Activity {
         mWebView = findViewById(R.id.activity_main_webview);
         WebSettings webSettings = mWebView.getSettings();
 
-        // 1. ENABLE FEATURES
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setDatabaseEnabled(true);
 
-        // 2. LONG TERM MEMORY
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(mWebView, true);
 
-        // Allow JS to copy text
         mWebView.addJavascriptInterface(new WebAppInterface(this), "Android");
 
-        // 3. THE NAVIGATOR (Handles all URL changes, including SPAs)
         mWebView.setWebViewClient(new WebViewClient() {
             
-            // 1. STANDARD LOAD
             @Override
             public void onPageFinished(WebView view, String url) {
                 handleUrl(view, url);
             }
 
-            // 2. WATCHDOG (Catches Silent SPA Navigation)
             @Override
             public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
                 super.doUpdateVisitedHistory(view, url, isReload);
@@ -58,7 +52,7 @@ public class MainActivity extends Activity {
         mWebView.loadUrl("https://app.tokportal.com/account-manager/calendar");
     }
 
-    // --- CENTRAL ROUTER LOGIC (Navigation Watchdog) ---
+    // --- CENTRAL ROUTER LOGIC ---
     private void handleUrl(WebView view, String url) {
         // PRIORITY 1: MISSION COCKPIT (Specific Video Selected - Has #video=X)
         if (url.contains("#video=")) {
@@ -96,9 +90,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    // =========================================================
-    // MODULE 1: COMMAND DECK (The Perfect List + Baton Pass)
-    // =========================================================
+    // --- MODULE 1: COMMAND DECK (Working Scraper) ---
     private void injectDashboardUI(WebView view) {
         StringBuilder js = new StringBuilder();
         js.append("javascript:(function() {");
@@ -163,7 +155,8 @@ public class MainActivity extends Activity {
         js.append("        if(txt.indexOf('scheduled') !== -1) {");
         js.append("          count++; actionHTML += \"<div class='card' style='border-left:3px solid #00f3ff;'>\";");
         js.append("          actionHTML += \"<div class='card-row'><div style='font-weight:bold; color:white; font-size:14px;'>\" + username + \"</div><div style='font-size:10px; color:#00f3ff;'>READY</div></div>\";");
-        // Navigation now goes to the Video Selector Screen
+        
+        // Navigation now goes to the Video Selector Screen, passing username
         js.append("          if(href) { actionHTML += \"<button class='btn' onclick='location.href=\\\"\" + href + \"#user=\" + cleanName + \"\\\"'>OPEN COCKPIT</button>\"; }");
         js.append("          else { actionHTML += \"<button class='btn' style='border-color:#666; color:#666;'>LINK NOT FOUND</button>\"; }");
         js.append("          actionHTML += \"</div>\";");
@@ -187,7 +180,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MODULE 2: VIDEO SELECTOR SCREEN (NEW STEP)
+    // MODULE 2: VIDEO SELECTOR SCREEN (Target Acquisition)
     // =========================================================
     private void injectVideoSelector(WebView view) {
         StringBuilder js = new StringBuilder();
@@ -197,9 +190,10 @@ public class MainActivity extends Activity {
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap');");
-        js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); 
+        js.append("    body > *:not(#selector-root) { visibility: hidden !important; }"); // Hide live site elements
         js.append("    #selector-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:white; z-index:99999; font-family:'Inter',sans-serif; padding:15px; overflow-y:auto; }");
-        js.append("    .sel-btn { background:#13131f; border:1px solid #00f3ff; color:#00f3ff; padding:15px; margin-bottom:10px; text-align:left; font-weight:bold; width:100%; display:block; }");
+        js.append("    .sel-btn { background:#13131f; border:1px solid #00f3ff; color:white; padding:15px; margin-bottom:10px; text-align:left; font-weight:bold; width:100%; display:block; }");
+        js.append("    .sel-status { float:right; color:#00f3ff; font-weight:normal; }");
         js.append("  `;");
         js.append("  document.head.appendChild(style);");
 
@@ -213,21 +207,27 @@ public class MainActivity extends Activity {
         js.append("  `;");
         js.append("  document.body.appendChild(root);");
 
-        // Scrape the live Order Page for available video cards
-        js.append("  var listContainer = document.getElementById('video-list');");
+        // --- SCRAPER LOGIC: Find all video cards on the Order Page ---
         js.append("  var currentUrl = window.location.href.split('#')[0];");
-        js.append("  var cards = document.querySelectorAll('.bg-white, .shadow-lg');"); // Broad selector for video cards
+        js.append("  var listContainer = document.getElementById('video-list');");
+        
+        // Target specific containers known to hold video cards, including the general 'Videos To Upload' section
+        js.append("  var cards = document.querySelectorAll('.rounded-lg, .bg-white, .shadow-lg');"); 
+        
         js.append("  var html = '';");
         js.append("  var videoCount = 0;");
+        js.append("  var userName = new URLSearchParams(window.location.hash.slice(1)).get('user');");
         
         js.append("  cards.forEach(function(card, index) {");
-        js.append("    var title = card.querySelector('h3, h4, .font-bold');");
-        js.append("    var status = card.innerText.includes('READY') ? 'READY' : 'SCHEDULED';");
-        js.append("    if(title && title.innerText.length > 5) {");
+        // Look for the header text containing the video title/number
+        js.append("    var titleEl = card.querySelector('h3, h4, .font-bold');");
+        js.append("    var status = card.innerText.includes('Publishing window is active') ? 'READY' : 'SCHEDULED';");
+        js.append("    ");
+        js.append("    if(titleEl && titleEl.innerText.includes('Video') && titleEl.innerText.length > 5) {"); // Filter based on expected content
         js.append("      videoCount++;");
-        js.append("      var cleanTitle = title.innerText.replace(/\\s+\\(\\S+\\)/, '').trim();");
-        js.append("      var buttonHref = currentUrl + '#video=' + index + '&status=' + status + '&title=' + encodeURIComponent(cleanTitle);");
-        js.append("      html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + ' (' + status + ')</button>';");
+        js.append("      var cleanTitle = titleEl.innerText.replace(/\\s+\\(\\S+\\)/, '').trim();");
+        js.append("      var buttonHref = currentUrl + '#video=' + index + '&user=' + userName;"); // Add the selected video index
+        js.append("      html += '<button class=\"sel-btn\" onclick=\"location.href=\\'' + buttonHref + '\\'\">' + cleanTitle + '<span class=\"sel-status\">' + status + '</span></button>';");
         js.append("    }");
         js.append("  });");
 
@@ -250,7 +250,7 @@ public class MainActivity extends Activity {
         js.append("  var style = document.createElement('style');");
         js.append("  style.innerHTML = `");
         js.append("    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap');");
-        js.append("    body > *:not(#cockpit-root) { display: none !important; }"); // Hides everything, including the selector
+        js.append("    body > *:not(#cockpit-root) { display: none !important; }"); 
         js.append("    #cockpit-root { position:fixed; top:0; left:0; width:100%; height:100%; background:#050507; color:#00f3ff; z-index:99999; font-family:'Share Tech Mono', monospace; display:flex; flex-direction:column; padding:10px; overflow-y:auto; }");
         js.append("    .cp-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:15px; }");
         js.append("    .cp-title { font-family:'Orbitron'; font-size:20px; letter-spacing:2px; color:white; }");
@@ -260,7 +260,7 @@ public class MainActivity extends Activity {
         js.append("    .data-val { color:white; background:#111; padding:6px; border:1px solid #333; font-size:14px; flex:1; margin:0 10px; overflow:hidden; text-overflow:ellipsis; }");
         js.append("    .btn-copy { background:#00f3ff; color:black; border:none; padding:4px 8px; font-weight:bold; cursor:pointer; font-size:10px; border-radius:2px; }");
         js.append("    .action-btn { background:rgba(0,243,255,0.1); border:1px solid #00f3ff; color:#00f3ff; padding:15px; margin-bottom:10px; text-align:center; cursor:pointer; font-weight:bold; width:100%; display:block; }");
-        // THEME VIRUS (For when the upload modal opens)
+        
         js.append("    div[role='dialog'], .modal, .popup { background-color: #13131f !important; color: white !important; border: 1px solid #00f3ff !important; }");
         js.append("    h1, h2, h3, h4, strong { color: #00f3ff !important; }");
         js.append("    input, textarea, select { background: #050507 !important; color: white !important; border: 1px solid #333 !important; }");
@@ -309,8 +309,7 @@ public class MainActivity extends Activity {
         js.append("    if(found) {");
         js.append("       document.getElementById('cockpit-root').style.display = 'none';");
         js.append("       document.getElementById('return-btn').style.display = 'block';");
-        // Bunker Buster: Click "I Understand" if it appears
-        js.append("       setInterval(function() {");
+        js.append("       setInterval(function() {"); // Bunker Buster: Auto-Click "I Understand"
         js.append("          var btns = document.getElementsByTagName('button');");
         js.append("          for(var k=0; k<btns.length; k++) { if(btns[k].innerText.includes('Understand')) { btns[k].click(); } }");
         js.append("       }, 500);");
@@ -327,21 +326,19 @@ public class MainActivity extends Activity {
         js.append("    }");
         
         // 2. SCRAPE CAPTION (Look relative to the Upload Button)
-        js.append("    var buttons = document.getElementsByTagName('button');");
-        js.append("    for(var i=0; i<buttons.length; i++) {");
-        js.append("       if(buttons[i].innerText.toLowerCase().includes('upload this video')) {");
-        js.append("          var container = buttons[i].closest('.bg-white, .shadow-lg');"); // Find nearest card container
-        js.append("          if(container) {");
-        js.append("             var text = container.innerText;");
-        js.append("             var lines = text.split('\\n');");
-        js.append("             for(var k=0; k<lines.length; k++) {");
-        js.append("                if(lines[k].length > 10 && lines[k].includes('your health journey')) {"); // Use specific text as anchor
-        js.append("                   document.getElementById('cp-caption').innerText = lines[k]; break;");
-        js.append("                }");
-        js.append("             }");
-        js.append("          }");
-        js.append("       }");
+        js.append("    var uploadBtn = document.querySelector('button');"); // Find a button to use as an anchor
+        js.append("    var captionFound = false;");
+        
+        // Look for the specific text/structure of the caption
+        js.append("    var possibleCaptions = document.querySelectorAll('p, div, span, strong');"); 
+        js.append("    for(var i=0; i<possibleCaptions.length; i++) {");
+        js.append("        var txt = possibleCaptions[i].innerText.trim();");
+        // We use the unique hashtag pattern or specific phrase
+        js.append("        if(txt.length > 50 && (txt.includes('#') || txt.includes('medical support')) && !txt.includes('Target period')) {");
+        js.append("           document.getElementById('cp-caption').innerText = txt; captionFound = true; break;");
+        js.append("        }");
         js.append("    }");
+        js.append("    if(!captionFound) { document.getElementById('cp-caption').innerText = 'Caption scrape failed. Manual copy needed.'; }");
         
         js.append("  }, 1000);");
 
